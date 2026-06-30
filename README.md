@@ -13,7 +13,8 @@ navegador e não envia os frames faciais para um servidor de análise.
 - captura guiada multiângulo com 478 landmarks 3D, blendshapes e matrizes faciais;
 - upload local de JPG, PNG ou WEBP;
 - modos de análise masculino, feminino e neutro/editorial;
-- relatório com calibração PSL comunitária balanceada, intervalo estimado,
+- relatório com calibração PSL comunitária e bandas ajustadas ao sistema
+  de coordenadas da malha MediaPipe, intervalo estimado,
   subtiers LOW/MID/HIGH, traits bilíngues e auditoria;
 - facial contrast por Michelson adaptado + CIELAB para olhos, sobrancelhas e boca;
 - camada 2D e proxies de profundidade relativa para mandíbula, queixo, nariz e órbita;
@@ -78,8 +79,10 @@ Sinais de pele e contraste são proxies visuais de baixa confiança e não medem
 saúde. Projeção do queixo, estrutura óssea, deep-set eyes e hunter eyes são
 rotulados como proxies quando uma imagem frontal não sustenta uma conclusão.
 
-A versão 4 usa uma curva PSL conservadora, penalidade pelo componente mais fraco,
-penalidade por grande dispersão e gates mínimos antes de liberar HTN ou tiers de elite.
+A versão 6 calibra cada banda no sistema de coordenadas da malha MediaPipe antes
+da conversão PSL. Ela usa os pontos 58/288 para largura gonial visível e trata
+20/38/42 como segmentos internos da malha, não como terços clássicos baseados na
+linha capilar. Ajustes e gates permanecem pequenos para evitar dupla contagem.
 LOW/MID/HIGH subdividem cada faixa, mas continuam sendo taxonomia informal de fórum.
 Os famosos mostrados no relatório são referências citadas em discussões comunitárias
 para a faixa ampla — não sósias, matches ou notas verificadas.

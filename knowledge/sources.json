@@ -67,6 +67,30 @@
       "evidence_level": "technical_reference"
     },
     {
+      "id": "mediapipe_canonical_face_model",
+      "title": "MediaPipe canonical face model",
+      "type": "official_model_geometry",
+      "url": "https://github.com/google-ai-edge/mediapipe/blob/master/mediapipe/modules/face_geometry/data/canonical_face_model.obj",
+      "evidence_level": "technical_reference",
+      "notes": "Usado para verificar se os pontos e as faixas pertencem ao mesmo sistema de coordenadas. A auditoria mostrou que 58/288 representam melhor a transição de largura gonial visível que 172/397 e que o ponto 10 não permite tratar os segmentos como terços clássicos iguais."
+    },
+    {
+      "id": "kramer_jones_ward_2022_allometry",
+      "title": "Beyond facial width-to-height ratios: bizygomatic width is highly sexually dimorphic when adjusting for allometry",
+      "type": "peer_reviewed",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC9554718/",
+      "evidence_level": "research_observation",
+      "notes": "Define fWHR e mostra que largura e alometria exigem cuidado. Maior fWHR pode aumentar masculinidade percebida, mas não equivale automaticamente a maior atratividade."
+    },
+    {
+      "id": "mandibular_tapering_ratio_2024",
+      "title": "Hard and Soft Tissue Facial Landmarks for Mandibular Angle Reduction: A Clinical Study",
+      "type": "peer_reviewed",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11417696/",
+      "evidence_level": "measurement_reference",
+      "notes": "Relata facial tapering ratio acima de 83% como indicativo de contorno quadrado, mas ressalta que não existe um ratio definitivo universal."
+    },
+    {
       "id": "mediapipe_selfie_multiclass_segmenter",
       "title": "MediaPipe Image Segmenter and SelfieMulticlass model",
       "type": "official_technical_documentation",

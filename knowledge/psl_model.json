@@ -1,12 +1,19 @@
 {
-  "schema_version": 5,
-  "model_name": "LOKX community-balanced multimode 2D + relative-3D PSL-inspired heuristic",
+  "schema_version": 6,
+  "model_name": "LOKX landmark-calibrated multimode 2D + relative-3D PSL-inspired heuristic",
   "scale": {"min": 1, "max": 8},
   "status": "community-inspired_not_scientifically_validated",
   "selection_rule": "The user selects masculine, feminine or neutral/editorial before camera or upload. Sex and gender are never inferred.",
   "calibration_anchors": {
-    "internal_alignment_percent_to_psl": {"20": 2.4, "35": 3.4, "50": 4.3, "60": 4.9, "68": 5.5, "76": 6.0, "85": 6.5, "92": 7.0, "97": 7.5},
+    "internal_alignment_percent_to_psl": {"20": 2.4, "35": 3.4, "50": 4.3, "60": 4.9, "65": 5.5, "73": 6.0, "83": 6.5, "91": 7.0, "97": 7.5},
     "note": "Internal alignment percentages are heuristic scores, not percentiles. Piecewise anchors are tuned to the selected community tier boundaries and remain experimental."
+  },
+  "mesh_coordinate_calibration": {
+    "bigonial_proxy_landmarks": [58, 288],
+    "previous_incorrect_landmarks": [172, 397],
+    "vertical_segment_reference_percent": [20.5, 38.0, 41.5],
+    "alignment_compression": "raw ideal-band alignment is compressed to 25 + raw*0.5 before mode weighting, preventing a single ratio from becoming either 0 or 100",
+    "note": "Bands are defined in MediaPipe mesh coordinates. They are not interchangeable with caliper anthropometry or classical hairline-based facial thirds."
   },
   "modes": {
     "masculine": {
@@ -70,6 +77,7 @@
   ],
   "measurement_limits": [
     "Percent scores are internal heuristic alignment, not population percentiles.",
+    "Landmark bands are calibrated to MediaPipe canonical-mesh coordinates; classical anthropometric ratios cannot be pasted directly onto different landmark pairs.",
     "Chin projection, deep-set eyes, hunter eyes, jaw structure and cheekbones are labeled as 2D visual proxies where appropriate.",
     "Facial contrast uses adapted Michelson luminance contrast and CIELAB differences across eyes, eyebrows and mouth versus surrounding facial skin.",
     "Skin-surface uniformity and facial contrast remain capture-dependent proxies affected by lighting, makeup, camera and compression; they do not measure skin health.",

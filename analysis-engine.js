@@ -144,17 +144,19 @@ function angleAt3d(a, center, c) {
 function rangeAlignment(value, min, max) {
   const midpoint = (min + max) / 2;
   const halfRange = Math.max((max - min) / 2, 0.001);
-  return round(clamp(100 - (Math.abs(value - midpoint) / halfRange) * 26, 0, 100), 1);
+  const rawAlignment = clamp(100 - (Math.abs(value - midpoint) / halfRange) * 26, 0, 100);
+  return round(25 + rawAlignment * 0.5, 1);
 }
 
 function targetAlignment(value, target, tolerance) {
-  return round(clamp(100 - (Math.abs(value - target) / Math.max(tolerance, 0.001)) * 28, 0, 100), 1);
+  const rawAlignment = clamp(100 - (Math.abs(value - target) / Math.max(tolerance, 0.001)) * 28, 0, 100);
+  return round(25 + rawAlignment * 0.5, 1);
 }
 
 function toPsl(scorePercent) {
   const anchors = [
     [0, 1], [20, 2.4], [35, 3.4], [50, 4.3], [60, 4.9],
-    [68, 5.5], [76, 6], [85, 6.5], [92, 7], [97, 7.5], [100, 7.8],
+    [65, 5.5], [73, 6], [83, 6.5], [91, 7], [97, 7.5], [100, 7.8],
   ];
   const score = clamp(scorePercent, 0, 100);
   for (let index = 1; index < anchors.length; index += 1) {
@@ -185,11 +187,11 @@ function targetLabelsForEngine(target) {
 }
 
 function classifyFaceShape(lengthToWidth, jawToCheek, templeToCheek) {
-  if (lengthToWidth >= 1.48) return { id: "oblong", label: "Oblong / Oblongo" };
-  if (jawToCheek >= 0.9 && lengthToWidth <= 1.38) return { id: "square", label: "Square / Quadrado" };
-  if (jawToCheek >= 0.84 && lengthToWidth <= 1.28) return { id: "round", label: "Round / Redondo" };
-  if (jawToCheek <= 0.76 && templeToCheek >= 0.86) return { id: "heart", label: "Heart / Coração" };
-  if (jawToCheek <= 0.8 && templeToCheek <= 0.88 && lengthToWidth >= 1.32) {
+  if (lengthToWidth >= 1.28) return { id: "oblong", label: "Oblong / Oblongo" };
+  if (jawToCheek >= 0.89 && lengthToWidth <= 1.22) return { id: "square", label: "Square / Quadrado" };
+  if (jawToCheek >= 0.84 && lengthToWidth <= 1.08) return { id: "round", label: "Round / Redondo" };
+  if (jawToCheek <= 0.79 && templeToCheek >= 0.8) return { id: "heart", label: "Heart / Coração" };
+  if (jawToCheek <= 0.82 && templeToCheek <= 0.82 && lengthToWidth >= 1.18) {
     return { id: "diamond", label: "Diamond / Diamante" };
   }
   return { id: "oval", label: "Oval / Oval" };
@@ -423,14 +425,14 @@ function penalty(id, labelEn, labelPt, status, points = 0, note = "") {
 }
 
 function createModeAnalysis(mode, s) {
-  const midfaceClass = s.middleThird < 30 ? { en: "short", pt: "curto" }
-    : s.middleThird <= 36 ? { en: "balanced", pt: "equilibrado" } : { en: "long", pt: "longo" };
+  const midfaceClass = s.middleThird < 33 ? { en: "short", pt: "curto" }
+    : s.middleThird <= 43 ? { en: "balanced", pt: "equilibrado" } : { en: "long", pt: "longo" };
   const cheekboneClass = s.cheekboneScore >= 72 ? { en: "high / prominent", pt: "altas / proeminentes" }
     : s.cheekboneScore >= 46 ? { en: "medium", pt: "médias" } : { en: "low", pt: "baixas" };
   const capturePenalty = round((100 - s.captureConfidence) * 0.006, 2);
   const commonPenalties = [
     penalty("low_symmetry", "Low symmetry", "Baixa simetria", s.symmetry < 55 ? "applied" : "clear", s.symmetry < 55 ? 0.12 : 0),
-    penalty("long_midface", "Very long midface", "Midface muito longo", s.middleThird > 38 ? "applied" : "clear", s.middleThird > 38 ? 0.1 : 0),
+    penalty("long_midface", "Very long midface", "Midface muito longo", s.middleThird > 47 ? "applied" : "clear", s.middleThird > 47 ? 0.1 : 0),
     penalty("capture_quality", "Capture quality", "Qualidade da captura", capturePenalty > 0.08 ? "applied" : "clear", capturePenalty, "Combina confiança, enquadramento e estabilidade; não identifica sozinho a causa."),
     penalty("lighting_uniformity", "Uneven lighting signal", "Sinal de iluminação desigual", Number.isFinite(s.lightingUniformity) ? (s.lightingUniformity < 45 ? "applied" : "clear") : "not_measured", Number.isFinite(s.lightingUniformity) && s.lightingUniformity < 45 ? 0.06 : 0, "Estimativa de pixels; sombras intencionais também podem afetar o valor."),
     penalty("expression_neutrality", "Expression neutrality", "Neutralidade da expressão", Number.isFinite(s.depthSignals?.expressionNeutrality) ? (s.depthSignals.expressionNeutrality < 68 ? "applied" : "clear") : "not_measured", Number.isFinite(s.depthSignals?.expressionNeutrality) && s.depthSignals.expressionNeutrality < 68 ? 0.08 : 0, "Blendshapes detectam sorriso, abertura da boca e contrações; não interpretam emoção."),
@@ -446,25 +448,25 @@ function createModeAnalysis(mode, s) {
   if (mode === "masculine") {
     const masculineExtras = Number.isFinite(s.facialContrast)
       ? s.featureBalance * 0.9 + s.facialContrast * 0.1 : s.featureBalance;
-    const jawClass = s.jawlineScore >= 82 ? { en: "angular", pt: "angular" }
-      : s.jawlineScore >= 68 ? { en: "defined", pt: "definida" }
+    const jawClass = s.jawlineScore >= 75 ? { en: "angular", pt: "angular" }
+      : s.jawlineScore >= 65 ? { en: "defined", pt: "definida" }
         : s.jawlineScore >= 53 ? { en: "moderate", pt: "moderada" }
           : s.jawlineScore >= 38 ? { en: "soft", pt: "suave" } : { en: "weak", pt: "fraca" };
     const chinClass = s.chinPhiltrumRatio < 1.75 ? { en: "recessed-like visual", pt: "aparência retraída" }
       : s.chinPhiltrumRatio < 2.2 ? { en: "neutral", pt: "neutro" }
         : s.chinPhiltrumRatio < 2.65 ? { en: "projected-like visual", pt: "aparência projetada" }
           : { en: "strong", pt: "forte" };
-    const eyeClass = s.hunterEyesScore >= 75 ? { en: "hunter-like visual", pt: "visual hunter-like" }
-      : s.browEyeGapRatio < 1.15 && s.eyeAspect > 3.2 ? { en: "deep-set-like visual", pt: "visual profundo" }
-        : s.eyeAspect < 2.45 ? { en: "round", pt: "redondos" }
-          : s.eyeAspect < 2.9 ? { en: "neutral", pt: "neutros" } : { en: "almond", pt: "amendoados" };
+    const eyeClass = s.hunterEyesScore >= 68 ? { en: "hunter-like visual", pt: "visual hunter-like" }
+      : s.browEyeGapRatio < 2.8 && s.eyeAspect > 4.1 ? { en: "deep-set-like visual", pt: "visual profundo" }
+        : s.eyeAspect < 3.25 ? { en: "round", pt: "redondos" }
+          : s.eyeAspect < 3.7 ? { en: "neutral", pt: "neutros" } : { en: "almond", pt: "amendoados" };
     const browClass = s.browStrength >= 70 ? { en: "strong", pt: "forte" }
       : s.browStrength >= 45 ? { en: "neutral", pt: "neutra" } : { en: "soft", pt: "suave" };
 
     components = [
       modeComponent("harmony", "Facial Harmony", "Harmonia facial", 35, s.harmony, "symmetry + proportional balance"),
-      modeComponent("dimorphism", "Masculine Dimorphism", "Dimorfismo masculino", 25, s.masculineDimorphism, "jaw + fWHR + lower third + eye framing"),
-      modeComponent("angularity", "Angularity / Structure", "Angularidade / estrutura", 25, s.angularity, "2D contour proxy; not bone"),
+      modeComponent("dimorphism", "Masculine Dimorphism", "Dimorfismo masculino", 25, s.masculineDimorphism, `jaw ${round(s.jawWidthScore)} + fWHR ${round(s.fwhrScore)} + lower third ${round(s.lowerThirdScore)} + eyes ${round(s.hunterEyesScore)}`),
+      modeComponent("angularity", "Angularity / Structure", "Angularidade / estrutura", 25, s.angularity, `jawline ${round(s.jawlineScore)} + eyes ${round(s.hunterEyesScore)} + fWHR ${round(s.fwhrScore)} + brow ${round(s.browScore)}; 2D proxies`),
       modeComponent("extras", "Extra Feature Balance", "Equilíbrio de características extras", 15, masculineExtras, "eyes + nose + mouth + lips + measured contrast"),
     ];
     formula = "harmony×0.35 + masculine_dimorphism×0.25 + angularity×0.25 + extras×0.15 − measurable penalties";
@@ -506,13 +508,13 @@ function createModeAnalysis(mode, s) {
         : s.jawCheekRatio < 0.89 ? { en: "balanced", pt: "equilibrada" } : { en: "angular", pt: "angular" };
     const chinClass = s.chinPhiltrumRatio < 1.8 ? { en: "small", pt: "pequeno" }
       : s.chinPhiltrumRatio < 2.55 ? { en: "balanced", pt: "equilibrado" } : { en: "projected-like visual", pt: "aparência projetada" };
-    const eyeClass = s.eyeSizeRatio > 0.25 && s.eyeAspect < 2.75 ? { en: "large", pt: "grandes" }
-      : s.eyeAspect < 2.35 ? { en: "round", pt: "redondos" }
-        : s.browEyeGapRatio < 1.1 && s.eyeAspect > 3.35 ? { en: "hooded / deep-set-like visual", pt: "visual hooded / profundo" }
+    const eyeClass = s.eyeSizeRatio > 0.19 && s.eyeAspect < 3.65 ? { en: "large", pt: "grandes" }
+      : s.eyeAspect < 3.25 ? { en: "round", pt: "redondos" }
+        : s.browEyeGapRatio < 2.75 && s.eyeAspect > 4.15 ? { en: "hooded / deep-set-like visual", pt: "visual hooded / profundo" }
           : { en: "almond", pt: "amendoados" };
-    const lipClass = s.lipFullness < 4.2 ? { en: "thin", pt: "finos" }
+    const lipClass = s.lipFullness < 8.5 ? { en: "thin", pt: "finos" }
       : s.lipScore >= 75 ? { en: "balanced", pt: "equilibrados" }
-        : s.lipFullness > 6.4 ? { en: "full", pt: "volumosos" } : { en: "medium", pt: "médios" };
+        : s.lipFullness > 12.5 ? { en: "full", pt: "volumosos" } : { en: "medium", pt: "médios" };
     const noseClass = s.noseFaceWidth < 0.2 && s.noseScore >= 60 ? { en: "delicate / narrow", pt: "delicado / estreito" }
       : s.noseFaceWidth < 0.22 ? { en: "narrow", pt: "estreito" }
         : s.noseFaceWidth <= 0.28 ? { en: "medium", pt: "médio" } : { en: "wide", pt: "largo" };
@@ -736,7 +738,9 @@ export function analyzeLandmarks(rawLandmarks, options = {}) {
 
   const faceWidth = pointDistance(points[234], points[454]);
   const faceHeight = pointDistance(points[10], points[152]);
-  const jawWidth = pointDistance(points[172], points[397]);
+  // 58/288 sit near the visible gonial-width transition. 172/397 are much
+  // closer to the chin and systematically understate bigonial width.
+  const jawWidth = pointDistance(points[58], points[288]);
   const templeWidth = pointDistance(points[54], points[284]);
   const mouthWidth = pointDistance(points[61], points[291]);
   const noseWidth = pointDistance(points[98], points[327]);
@@ -791,41 +795,44 @@ export function analyzeLandmarks(rawLandmarks, options = {}) {
   const symmetry = symmetryScore(points, faceWidth);
   const eyeBalance = bilateralEyeScore(leftCanthalTilt, rightCanthalTilt, leftEyeAspect, rightEyeAspect);
   const shape = classifyFaceShape(faceLengthWidth, jawCheekRatio, templeCheekRatio);
+  // These are mesh-coordinate bands, not literal classical facial thirds.
+  // Landmark 10 is forehead mesh, not the hairline; equal 33/33/33 targets
+  // therefore produced a systematic lower-third failure.
   const thirdsScore = average([
-    targetAlignment(upperThird, 33.33, 8),
-    targetAlignment(middleThird, 33.33, 8),
-    targetAlignment(lowerThird, 33.33, 8),
+    targetAlignment(upperThird, 20.5, 7),
+    targetAlignment(middleThird, 38, 7),
+    targetAlignment(lowerThird, 41.5, 7),
   ]);
-  const canthalScore = rangeAlignment(averageCanthalTilt, 5.2, 8.5);
-  const eyeSpacingScore = rangeAlignment(eyeSpacing, 0.93, 1.04);
-  const eyeAspectScore = rangeAlignment(eyeAspect, 2.8, 3.6);
-  const mouthNoseScore = rangeAlignment(mouthNoseRatio, 1.38, 1.53);
-  const jawWidthScore = rangeAlignment(jawCheekRatio, 0.855, 0.92);
-  const lipScore = rangeAlignment(lipRatio, 1.4, 2);
-  const noseScore = rangeAlignment(noseWidthHeightRatio, 0.62, 0.88);
-  const fwhrScore = rangeAlignment(fwhr, 1.9, 2.06);
-  const chinPhiltrumScore = rangeAlignment(chinPhiltrumRatio, 2.05, 2.55);
-  const lowerThirdScore = rangeAlignment(lowerThird, 30.6, 34);
-  const browScore = rangeAlignment(Math.abs(browTilt), 5, 13);
-  const browStrength = clamp(100 - (browEyeGapRatio - 0.7) * 55, 0, 100);
+  const canthalScore = rangeAlignment(averageCanthalTilt, 0, 10);
+  const eyeSpacingScore = rangeAlignment(eyeSpacing, 1.18, 1.55);
+  const eyeAspectScore = rangeAlignment(eyeAspect, 3.25, 4.4);
+  const mouthNoseScore = rangeAlignment(mouthNoseRatio, 1.5, 1.9);
+  const jawWidthScore = rangeAlignment(jawCheekRatio, 0.84, 0.93);
+  const lipScore = rangeAlignment(lipRatio, 1.18, 1.82);
+  const noseScore = rangeAlignment(noseWidthHeightRatio, 0.42, 0.68);
+  const fwhrScore = rangeAlignment(fwhr, 1.65, 2.05);
+  const chinPhiltrumScore = rangeAlignment(chinPhiltrumRatio, 2.5, 3.55);
+  const lowerThirdScore = rangeAlignment(lowerThird, 37.5, 45.5);
+  const browScore = rangeAlignment(Math.abs(browTilt), 15, 32);
+  const browStrength = clamp(100 - Math.max(0, browEyeGapRatio - 2.4) * 28, 0, 100);
   const hunterEyesScore = canthalScore * 0.4 + eyeAspectScore * 0.3 + eyeBalance * 0.3;
   const jawlineScore = jawWidthScore * 0.5 + symmetry * 0.2 + lowerThirdScore * 0.3;
   const eyeAreaScore = average([hunterEyesScore, eyeBalance, eyeSpacingScore]);
   const featureBalance = average([eyeAreaScore, mouthNoseScore, lipScore, noseScore, chinPhiltrumScore, browScore]);
-  const cheekboneScore = average([rangeAlignment(jawCheekRatio, 0.76, 0.88), rangeAlignment(templeCheekRatio, 0.84, 0.95)]);
+  const cheekboneScore = average([rangeAlignment(jawCheekRatio, 0.8, 0.91), rangeAlignment(templeCheekRatio, 0.76, 0.88)]);
   const harmony = [
     symmetry * 0.26, thirdsScore * 0.2, eyeSpacingScore * 0.1, mouthNoseScore * 0.1,
-    rangeAlignment(faceLengthWidth, 1.3, 1.48) * 0.12, eyeBalance * 0.1, lipScore * 0.06,
+    rangeAlignment(faceLengthWidth, 1.08, 1.27) * 0.12, eyeBalance * 0.1, lipScore * 0.06,
     chinPhiltrumScore * 0.06,
   ].reduce((sum, value) => sum + value, 0);
-  const faceRatioScore = rangeAlignment(faceLengthWidth, 1.3, 1.48);
+  const faceRatioScore = rangeAlignment(faceLengthWidth, 1.08, 1.27);
   const angularity = jawlineScore * 0.45 + hunterEyesScore * 0.22 + fwhrScore * 0.18 + browScore * 0.15;
   const masculineDimorphism = jawWidthScore * 0.34 + fwhrScore * 0.26 + lowerThirdScore * 0.2 + hunterEyesScore * 0.2;
   const feminineDimorphism = [
-    rangeAlignment(jawCheekRatio, 0.72, 0.84) * 0.28,
-    rangeAlignment(eyeAspect, 2.2, 3.0) * 0.24,
+    rangeAlignment(jawCheekRatio, 0.74, 0.86) * 0.28,
+    rangeAlignment(eyeAspect, 3.2, 4.15) * 0.24,
     lipScore * 0.2,
-    rangeAlignment(faceLengthWidth, 1.32, 1.5) * 0.16,
+    rangeAlignment(faceLengthWidth, 1.1, 1.28) * 0.16,
     thirdsScore * 0.12,
   ].reduce((sum, value) => sum + value, 0);
   const neutralDefinition = average([harmony, angularity, featureBalance]);
@@ -840,7 +847,7 @@ export function analyzeLandmarks(rawLandmarks, options = {}) {
   const depthSignals = relativeDepthSignals(points, options.depthSignals || {});
   const modeAnalysis = createModeAnalysis(presentationTarget, {
     shape, harmony, symmetry, thirdsScore, eyeSpacingScore, mouthNoseScore, noseScore,
-    faceRatioScore, chinPhiltrumScore, lowerThirdScore, lipScore, fwhrScore, angularity,
+    faceRatioScore, chinPhiltrumScore, lowerThirdScore, lipScore, fwhrScore, jawWidthScore, browScore, angularity,
     masculineDimorphism, feminineDimorphism, featureBalance, jawlineScore, eyeAreaScore,
     hunterEyesScore, cheekboneScore, eyeBalance, captureConfidence, middleThird,
     jawCheekRatio, chinPhiltrumRatio, browEyeGapRatio, eyeAspect, eyeSizeRatio,
@@ -874,8 +881,8 @@ export function analyzeLandmarks(rawLandmarks, options = {}) {
   const geometryIndex = round(average([harmony, angularity, featureBalance]), 1);
   const components = modeAnalysis.components;
 
-  const hunterVerdict = hunterEyesScore >= 75 ? "Strong Hunter-Eyes Pattern / Padrão forte"
-    : hunterEyesScore >= 60 ? "Partial Hunter-Eyes Pattern / Padrão parcial"
+  const hunterVerdict = hunterEyesScore >= 68 ? "Strong Hunter-Eyes Pattern / Padrão forte"
+    : hunterEyesScore >= 55 ? "Partial Hunter-Eyes Pattern / Padrão parcial"
       : "Hunter-Eyes Pattern not indicated / Padrão não indicado";
   const nasalDepthScore = rangeAlignment(depthSignals.nasalProjection, 10, 24);
   const chinDepthScore = rangeAlignment(depthSignals.chinProjection, 2.5, 11);
@@ -899,7 +906,7 @@ export function analyzeLandmarks(rawLandmarks, options = {}) {
     trait({ id: "skin_surface_uniformity", en: "Skin-Surface Uniformity Proxy", pt: "Proxy de uniformidade superficial da pele", score: skinSignalUsable ? imageSignals.skinHomogeneity : null, raw: skinSignalUsable ? round(imageSignals.skinHomogeneity) : "UNRELIABLE_OR_UNAVAILABLE_LIGHTING", unit: "%", confidence: "low", source: skinSignalUsable ? "pixel_proxy" : "not_measured", note: "Depende de iluminação, maquiagem, câmera e compressão; não mede saúde da pele." }),
     trait({ id: "facial_contrast", en: "Facial Contrast (L* + ΔE)", pt: "Contraste facial (L* + ΔE)", score: contrastSignalUsable ? imageSignals.facialContrast : null, raw: contrastRaw, unit: "adapted Michelson + CIELAB", confidence: contrastSignalUsable && imageSignals.contrastConfidence >= 60 ? "medium" : "low", source: contrastSignalUsable ? "pixel_proxy" : "not_measured", note: `Olhos, sobrancelhas e boca contra pele adjacente. Confiança ${round(imageSignals.contrastConfidence ?? 0)}%; descreve contraste visual, não valor estético universal.` }),
     trait({ id: "facial_symmetry", en: "Facial Symmetry", pt: "Simetria facial", score: symmetry, raw: round(symmetry), unit: "%", confidence: "high", source: "geometry" }),
-    trait({ id: "facial_thirds", en: "Facial Thirds", pt: "Terços faciais", score: thirdsScore, raw: `${round(upperThird, 1)} / ${round(middleThird, 1)} / ${round(lowerThird, 1)}`, unit: "%", confidence: "low", source: "2d_proxy", note: "O topo da testa não é a linha capilar real." }),
+    trait({ id: "facial_thirds", en: "Face-Mesh Vertical Segments", pt: "Segmentos verticais da malha facial", score: thirdsScore, raw: `${round(upperThird, 1)} / ${round(middleThird, 1)} / ${round(lowerThird, 1)}`, unit: "%", confidence: "low", source: "2d_proxy", note: "Calibrado contra a geometria da malha. O ponto 10 não é a linha capilar, portanto isto não representa terços clássicos 33/33/33." }),
     trait({ id: "fwhr", en: "Facial Width-to-Height Ratio (fWHR)", pt: "Relação largura-altura facial", score: fwhrScore, raw: round(fwhr), unit: "ratio", confidence: "medium", source: "anthropometry" }),
     trait({ id: "midface_ratio", en: "Midface Ratio", pt: "Proporção do terço médio", score: thirdsScore, raw: round(midfaceRatio), unit: "ratio", confidence: "low", source: "community_proxy", note: "Definições variam entre fóruns." }),
     trait({ id: "eye_spacing", en: "Eye Spacing", pt: "Espaçamento ocular", score: eyeSpacingScore, raw: round(eyeSpacing), unit: "ratio", confidence: "high", source: "anthropometry" }),
@@ -932,7 +939,7 @@ export function analyzeLandmarks(rawLandmarks, options = {}) {
   const potential = buildPotential({ shape, eyeArea: eyeAreaScore, jawline: jawlineScore, featureBalance, captureConfidence });
 
   return {
-    version: 5,
+    version: 6,
     analyzedAt: new Date().toISOString(),
     sourceType: options.sourceType || "unknown",
     presentationTarget,
@@ -947,7 +954,7 @@ export function analyzeLandmarks(rawLandmarks, options = {}) {
       formula: modeAnalysis.formula,
       components,
       calibration: {
-        version: "community_balanced_piecewise_v5",
+        version: "landmark_calibrated_piecewise_v6",
         weightedPercent: modeAnalysis.weightedPercent,
         calibratedBasePsl,
         preGatePsl: round(preGatePsl, 2),
