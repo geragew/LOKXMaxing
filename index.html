@@ -2,6 +2,8 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; worker-src 'self' blob:; font-src 'self' data:; manifest-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'self'" />
+    <meta name="referrer" content="no-referrer" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#512728" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -191,7 +193,7 @@
     </dialog>
 
     <dialog class="system-dialog biometric-dialog" id="biometric-modal" aria-labelledby="biometric-modal-title">
-      <form method="dialog" id="biometric-form">
+      <form method="dialog" id="biometric-form" autocomplete="off">
         <header class="dialog-titlebar">
           <span>BIOMETRIC_PERMISSION.SYS</span>
           <button value="cancel" aria-label="Fechar">[×]</button>
@@ -309,7 +311,7 @@
                     [ UPLOAD_PHOTO ]
                     <small>JPG, PNG ou WEBP processado localmente</small>
                   </button>
-                  <input id="analysis-photo-file" type="file" accept="image/jpeg,image/png,image/webp" hidden />
+                  <input id="analysis-photo-file" type="file" accept="image/jpeg,image/png,image/webp" autocomplete="off" hidden />
                 </div>
                 <p class="camera-error" id="camera-error" role="alert"></p>
                 <p class="secure-context-note" id="secure-context-note"></p>

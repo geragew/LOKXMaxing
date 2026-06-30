@@ -1,5 +1,9 @@
 const COOKIE_STORAGE_KEY = "lokx_cookie_consent_v1";
 const BIOMETRIC_STORAGE_KEY = "lokx_biometric_consent_v1";
+const STALE_ANALYSIS_TRANSFER_KEY = "lokx_analysis_result_v1";
+
+// A tela inicial nunca precisa conservar um relatório anterior.
+try { sessionStorage.removeItem(STALE_ANALYSIS_TRANSFER_KEY); } catch {}
 
 const get = (selector) => document.querySelector(selector);
 const cookieBanner = get("#cookie-banner");

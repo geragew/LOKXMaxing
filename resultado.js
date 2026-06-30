@@ -1,14 +1,19 @@
-import { DrawingUtils, FaceLandmarker, FilesetResolver } from "./assets/mediapipe/vision_bundle.mjs";
+import { FaceLandmarker, FilesetResolver } from "./assets/mediapipe/vision_bundle.mjs";
 import { analyzeImageSignals, analyzeLandmarks } from "./analysis-engine.js";
 
-const GREEN = "#b9ff4f";
 const get = (selector) => document.querySelector(selector);
+const ANALYSIS_TRANSFER_KEY = "lokx_analysis_result_v1";
+const REPORT_LIFETIME_MS = 15 * 60 * 1000;
+const HIDDEN_LIFETIME_MS = 5 * 60 * 1000;
 
 let primaryAnalysis = null;
 let versusFile = null;
 let imageLandmarker = null;
 let modelPromise = null;
 let originalDocumentTitle = document.title;
+let reportExpiryTimer = 0;
+let hiddenExpiryTimer = 0;
+let reportDestroyed = false;
 
 const targetLabels = {
   masculine: "MASCULINE CUES / PISTAS MASCULINAS",
@@ -209,10 +214,20 @@ function renderPrimary(analysis) {
 }
 
 function initializePage() {
+  let serializedAnalysis = null;
   try {
-    primaryAnalysis = JSON.parse(sessionStorage.getItem("lokx_analysis_result_v1"));
+    serializedAnalysis = sessionStorage.getItem(ANALYSIS_TRANSFER_KEY);
+    sessionStorage.removeItem(ANALYSIS_TRANSFER_KEY);
+    const transfer = serializedAnalysis ? JSON.parse(serializedAnalysis) : null;
+    const validTransfer = transfer?.kind === "lokx-one-time-analysis"
+      && Number.isFinite(transfer.expiresAt)
+      && Date.now() <= transfer.expiresAt;
+    primaryAnalysis = validTransfer ? transfer.payload : null;
   } catch {
     primaryAnalysis = null;
+  } finally {
+    serializedAnalysis = null;
+    sessionStorage.removeItem(ANALYSIS_TRANSFER_KEY);
   }
 
   if (!primaryAnalysis?.psl || !primaryAnalysis.modeAnalysis || primaryAnalysis.version < 3) {
@@ -224,6 +239,34 @@ function initializePage() {
   get("#report-content").hidden = false;
   get("#print-report-date").textContent = `GENERATED LOCALLY / GERADO LOCALMENTE // ${new Intl.DateTimeFormat("pt-BR", { dateStyle: "long", timeStyle: "short" }).format(new Date())}`;
   renderPrimary(primaryAnalysis);
+  reportExpiryTimer = window.setTimeout(() => destroySensitiveReport({ navigate: true }), REPORT_LIFETIME_MS);
+}
+
+function clearVersusFile() {
+  versusFile = null;
+  const input = get("#versus-file");
+  if (input) input.value = "";
+  const label = get(".upload-zone strong");
+  if (label) label.textContent = "ANEXAR_FOTO_B";
+}
+
+function destroySensitiveReport({ scrubDom = true, navigate = false } = {}) {
+  if (reportDestroyed && !navigate) return;
+  reportDestroyed = true;
+  window.clearTimeout(reportExpiryTimer);
+  window.clearTimeout(hiddenExpiryTimer);
+  sessionStorage.removeItem(ANALYSIS_TRANSFER_KEY);
+  clearVersusFile();
+  primaryAnalysis = null;
+  try { imageLandmarker?.close(); } catch {}
+  imageLandmarker = null;
+  modelPromise = null;
+  if (scrubDom) {
+    const content = get("#report-content");
+    content?.replaceChildren();
+    if (content) content.hidden = true;
+  }
+  if (navigate) window.location.replace("index.html?report=deleted");
 }
 
 function downloadReportPdf() {
@@ -281,19 +324,6 @@ async function prepareImage(file) {
   return workCanvas;
 }
 
-function drawVersusPreview(sourceCanvas, landmarks) {
-  const preview = get("#versus-preview");
-  preview.width = sourceCanvas.width;
-  preview.height = sourceCanvas.height;
-  const previewContext = preview.getContext("2d");
-  previewContext.drawImage(sourceCanvas, 0, 0);
-  const drawing = new DrawingUtils(previewContext);
-  drawing.drawConnectors(landmarks, FaceLandmarker.FACE_LANDMARKS_TESSELATION, { color: "rgba(185,255,79,.2)", lineWidth: 0.7 });
-  drawing.drawConnectors(landmarks, FaceLandmarker.FACE_LANDMARKS_FACE_OVAL, { color: GREEN, lineWidth: 2 });
-  drawing.drawConnectors(landmarks, FaceLandmarker.FACE_LANDMARKS_LEFT_EYE, { color: GREEN, lineWidth: 1.3 });
-  drawing.drawConnectors(landmarks, FaceLandmarker.FACE_LANDMARKS_RIGHT_EYE, { color: GREEN, lineWidth: 1.3 });
-}
-
 function renderVersus(challenger) {
   get("#versus-primary-score").textContent = primaryAnalysis.psl.score.toFixed(2);
   get("#versus-primary-tier").textContent = primaryAnalysis.psl.tier.label;
@@ -317,8 +347,9 @@ async function analyzeVersusPhoto() {
 
   button.disabled = true;
   button.textContent = "[ CARREGANDO_MODELO_LOCAL... ]";
+  let workCanvas = null;
   try {
-    const workCanvas = await prepareImage(versusFile);
+    workCanvas = await prepareImage(versusFile);
     const landmarker = await initializeImageModel();
     const result = landmarker.detect(workCanvas);
     if (!result.faceLandmarks?.length) throw new Error("Nenhum rosto foi encontrado na foto.");
@@ -331,11 +362,13 @@ async function analyzeVersusPhoto() {
       confidence: 70,
       imageSignals: analyzeImageSignals(workCanvas, landmarks),
     });
-    drawVersusPreview(workCanvas, landmarks);
     renderVersus(challenger);
   } catch (error) {
     errorElement.textContent = error.message || "Não foi possível analisar a foto.";
   } finally {
+    workCanvas?.getContext("2d")?.clearRect(0, 0, workCanvas.width, workCanvas.height);
+    if (workCanvas) { workCanvas.width = 1; workCanvas.height = 1; }
+    clearVersusFile();
     button.textContent = "[ ANALISAR_E_COMPARAR ]";
     updateUploadButton();
   }
@@ -343,7 +376,7 @@ async function analyzeVersusPhoto() {
 
 get("#versus-file").addEventListener("change", (event) => {
   versusFile = event.target.files?.[0] || null;
-  get(".upload-zone strong").textContent = versusFile ? versusFile.name : "ANEXAR_FOTO_B";
+  get(".upload-zone strong").textContent = versusFile ? "FOTO_B_PRONTA // NOME_OCULTO" : "ANEXAR_FOTO_B";
   get("#versus-result").hidden = true;
   updateUploadButton();
 });
@@ -351,6 +384,18 @@ get("#versus-consent").addEventListener("change", updateUploadButton);
 get("#analyze-versus").addEventListener("click", analyzeVersusPhoto);
 get("#download-pdf").addEventListener("click", downloadReportPdf);
 get("#download-pdf-footer").addEventListener("click", downloadReportPdf);
+get("#destroy-report").addEventListener("click", () => destroySensitiveReport({ navigate: true }));
+get("#destroy-report-footer").addEventListener("click", () => destroySensitiveReport({ navigate: true }));
 window.addEventListener("afterprint", finishPdfExport);
+window.addEventListener("pagehide", () => destroySensitiveReport({ scrubDom: true }));
+window.addEventListener("pageshow", (event) => {
+  if (event.persisted) window.location.replace("index.html?report=deleted");
+});
+document.addEventListener("visibilitychange", () => {
+  window.clearTimeout(hiddenExpiryTimer);
+  if (document.hidden && primaryAnalysis) {
+    hiddenExpiryTimer = window.setTimeout(() => destroySensitiveReport({ navigate: true }), HIDDEN_LIFETIME_MS);
+  }
+});
 
 initializePage();

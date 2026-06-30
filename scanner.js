@@ -101,6 +101,20 @@ let lastSampleAt = 0;
 let scanComplete = false;
 let sessionSamples = [];
 let frontVisualSignals = null;
+let navigatingToReport = false;
+
+const ANALYSIS_TRANSFER_KEY = "lokx_analysis_result_v1";
+const ANALYSIS_TRANSFER_TTL_MS = 60 * 1000;
+
+function storeOneTimeAnalysis(analysis) {
+  const now = Date.now();
+  sessionStorage.setItem(ANALYSIS_TRANSFER_KEY, JSON.stringify({
+    kind: "lokx-one-time-analysis",
+    createdAt: now,
+    expiresAt: now + ANALYSIS_TRANSFER_TTL_MS,
+    payload: analysis,
+  }));
+}
 
 function readCameraPreferences() {
   try {
@@ -173,12 +187,44 @@ function stopCurrentStream() {
   context.clearRect(0, 0, canvas.width, canvas.height);
 }
 
+function wipeCanvas(target) {
+  if (!target) return;
+  const targetContext = target.getContext?.("2d");
+  targetContext?.clearRect(0, 0, target.width, target.height);
+  target.width = 1;
+  target.height = 1;
+}
+
+function discardCapturedBiometrics({ preserveTransfer = false, closeModels = false } = {}) {
+  sessionSamples.fill(null);
+  sessionSamples.length = 0;
+  frontVisualSignals = null;
+  delete window.lokxLastScan;
+  analysisPhotoFile.value = "";
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  qualityCanvas.width = 1;
+  qualityCanvas.height = 1;
+  qualityCanvas.width = 32;
+  qualityCanvas.height = 24;
+  if (!preserveTransfer) sessionStorage.removeItem(ANALYSIS_TRANSFER_KEY);
+  if (closeModels) {
+    try { faceLandmarker?.close(); } catch {}
+    try { imageLandmarker?.close(); } catch {}
+    faceLandmarker = null;
+    imageLandmarker = null;
+    modelPromise = null;
+    imageModelPromise = null;
+  }
+}
+
 function resetSequence() {
   stepIndex = 0;
   stepElapsed = 0;
   previousTick = performance.now();
   lastSampleAt = 0;
   scanComplete = false;
+  sessionSamples.fill(null);
+  sessionSamples.length = 0;
   sessionSamples = [];
   frontVisualSignals = null;
   restartButton.disabled = false;
@@ -191,7 +237,7 @@ function updateInstruction() {
   if (scanComplete) {
     instructionIndex.textContent = "OK";
     instruction.textContent = "Mapeamento concluído.";
-    scanDetail.textContent = `${sessionSamples.length} amostras geométricas mantidas somente nesta sessão.`;
+    scanDetail.textContent = "Landmarks descartados após gerar o resumo de uso único.";
     progressStage.textContent = "CAPTURA_COMPLETA";
     return;
   }
@@ -308,13 +354,14 @@ async function analyzeUploadedPhoto(file) {
   }
 
   const originalLabel = uploadAnalysisButton.innerHTML;
+  let workCanvas = null;
   uploadAnalysisButton.disabled = true;
   uploadAnalysisButton.textContent = "[ ANALISANDO_LOCALMENTE... ]";
   instruction.textContent = "Lendo landmarks da foto...";
   scanDetail.textContent = "A imagem permanece neste dispositivo e não é adicionada ao relatório.";
   try {
     saveCameraPreferences({ presentationTarget: presentationTarget.value });
-    const workCanvas = await prepareUploadedImage(file);
+    workCanvas = await prepareUploadedImage(file);
     const landmarker = await initializeImageModel();
     const result = landmarker.detect(workCanvas);
     if (!result.faceLandmarks?.length) throw new Error("Nenhum rosto foi encontrado na foto.");
@@ -326,8 +373,9 @@ async function analyzeUploadedPhoto(file) {
       confidence: 72,
       imageSignals: analyzeImageSignals(workCanvas, result.faceLandmarks[0]),
     });
-    sessionStorage.setItem("lokx_analysis_result_v1", JSON.stringify(analysis));
+    storeOneTimeAnalysis(analysis);
     modelStatus.textContent = "MODEL_STATUS: PHOTO_ANALYSIS_READY";
+    navigatingToReport = true;
     window.location.href = "resultado.html";
   } catch (error) {
     setCameraError(error.message || "Não foi possível analisar a foto.");
@@ -336,6 +384,7 @@ async function analyzeUploadedPhoto(file) {
     uploadAnalysisButton.innerHTML = originalLabel;
   } finally {
     analysisPhotoFile.value = "";
+    wipeCanvas(workCanvas);
   }
 }
 
@@ -568,6 +617,7 @@ function captureLandmarkSample(landmarks, now) {
     snapshot.height = Math.max(1, Math.round(video.videoHeight * scale));
     snapshot.getContext("2d").drawImage(video, 0, 0, snapshot.width, snapshot.height);
     frontVisualSignals = analyzeImageSignals(snapshot, landmarks);
+    wipeCanvas(snapshot);
   }
 }
 
@@ -593,11 +643,6 @@ function advanceSequence(quality, landmarks, now) {
     if (stepIndex >= steps.length) {
       scanComplete = true;
       updateProgress(100);
-      window.lokxLastScan = {
-        completedAt: new Date().toISOString(),
-        source: currentMode,
-        samples: sessionSamples,
-      };
       try {
         const analysis = analyzeLandmarkSamples(sessionSamples, {
           aspectRatio: (video.videoWidth || 1) / (video.videoHeight || 1),
@@ -605,7 +650,10 @@ function advanceSequence(quality, landmarks, now) {
           presentationTarget: presentationTarget.value,
           imageSignals: frontVisualSignals,
         });
-        sessionStorage.setItem("lokx_analysis_result_v1", JSON.stringify(analysis));
+        storeOneTimeAnalysis(analysis);
+        sessionSamples.fill(null);
+        sessionSamples.length = 0;
+        frontVisualSignals = null;
         viewResultsButton.hidden = false;
       } catch (error) {
         setCameraError(`A captura terminou, mas o relatório falhou: ${error.message}`);
@@ -679,6 +727,7 @@ async function openScanner() {
 
 function closeScanner() {
   stopCurrentStream();
+  discardCapturedBiometrics({ closeModels: true });
   scannerModal.close();
   faceLock.hidden = true;
   cameraGate.hidden = false;
@@ -692,6 +741,8 @@ get("#refresh-cameras").addEventListener("click", () => refreshCameraList());
 get("#close-scanner").addEventListener("click", closeScanner);
 restartButton.addEventListener("click", resetSequence);
 viewResultsButton.addEventListener("click", () => {
+  navigatingToReport = true;
+  discardCapturedBiometrics({ preserveTransfer: true });
   window.location.href = "resultado.html";
 });
 cameraSelect.addEventListener("change", () => {
@@ -721,3 +772,7 @@ if (navigator.mediaDevices?.addEventListener) {
 }
 
 window.addEventListener("lokx:open-scanner", openScanner);
+window.addEventListener("pagehide", () => {
+  stopCurrentStream();
+  discardCapturedBiometrics({ preserveTransfer: navigatingToReport, closeModels: true });
+});

@@ -2,6 +2,8 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; worker-src 'self' blob:; font-src 'self' data:; manifest-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'self'" />
+    <meta name="referrer" content="no-referrer" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#512728" />
     <title>PRIVACIDADE.TXT // LOKXMaxing</title>
@@ -44,9 +46,17 @@
 
           <h2>04 // ARMAZENAMENTO_E_EXCLUSÃO</h2>
           <p>
-            Na versão inicial, as imagens serão processadas no aparelho e não serão
-            armazenadas. Caso futuramente seja oferecido histórico de relatórios, ele será
-            opcional e terá prazo e mecanismo de exclusão informados antes da ativação.
+            Imagens, frames e landmarks são processados no aparelho e não são gravados em
+            localStorage, IndexedDB ou no cache do PWA. Um resumo derivado atravessa somente
+            a navegação para o relatório, expira em 60 segundos e é removido do armazenamento
+            antes da tela ser montada. O relatório fica apenas na memória ativa e é descartado
+            ao sair, após 15 minutos ou depois de 5 minutos com a página oculta.
+          </p>
+          <p>
+            O cache offline contém somente arquivos estáticos da interface e os modelos locais.
+            Se o usuário salvar um PDF, esse arquivo passa a ser controlado pelo dispositivo e
+            deve ser apagado manualmente. O navegador não consegue impedir leitura por malware,
+            extensões invasivas ou ferramentas de desenvolvimento no próprio aparelho.
           </p>
 
           <h2>05 // DIREITOS_DO_TITULAR</h2>

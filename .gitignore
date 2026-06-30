@@ -19,6 +19,11 @@ tokens*.json
 /recordings/
 /reports/
 /exports/
+/biometric-data/
+/data/biometric/
+*.face.json
+*.landmarks.json
+*facial-report*.pdf
 *.local.json
 
 # Original design sources and private working files

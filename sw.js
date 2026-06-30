@@ -1,5 +1,5 @@
-const CACHE_VERSION = "lokx-shell-v8";
-const RUNTIME_CACHE = "lokx-runtime-v8";
+const CACHE_VERSION = "lokx-shell-v9";
+const RUNTIME_CACHE = "lokx-static-v9";
 const SHELL_ASSETS = [
   "./",
   "./index.html",
@@ -44,17 +44,21 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+  const scopePath = new URL(self.registration.scope).pathname;
+  const relativePath = url.pathname.startsWith(scopePath)
+    ? url.pathname.slice(scopePath.length)
+    : url.pathname.replace(/^\/+/, "");
 
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, copy));
-          return response;
-        })
         .catch(async () => {
-          return (await caches.match(request)) || (await caches.match("./index.html"));
+          const safeFallbacks = new Map([
+            ["resultado.html", "./resultado.html"],
+            ["cameras.html", "./cameras.html"],
+          ]);
+          const fallback = safeFallbacks.get(relativePath) || "./index.html";
+          return caches.match(fallback);
         }),
     );
     return;
@@ -65,7 +69,10 @@ self.addEventListener("fetch", (event) => {
       if (cached) return cached;
       return fetch(request).then((response) => {
         if (response.ok) {
-          const shouldCache = /\.(?:js|mjs|css|png|svg|webp|wasm|task|json|webmanifest)$/i.test(url.pathname);
+          const isBiometricPath = /^(?:uploads|captures|recordings|reports|exports)(?:\/|$)/i.test(relativePath);
+          const isStaticAsset = /^assets\//i.test(relativePath)
+            && /\.(?:js|mjs|png|svg|webp|wasm|task)$/i.test(relativePath);
+          const shouldCache = !isBiometricPath && isStaticAsset;
           if (shouldCache) {
             const copy = response.clone();
             caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, copy));

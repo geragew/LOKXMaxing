@@ -18,7 +18,7 @@ navegador e não envia os frames faciais para um servidor de análise.
 - comparação versus com consentimento;
 - exportação do relatório para PDF pelo diálogo nativo do navegador;
 - manifesto, service worker, ícones e modo standalone de PWA;
-- processamento e preferências mantidos no dispositivo.
+- processamento local com ciclo de vida biométrico de uso único.
 
 ## Executar localmente
 
@@ -49,11 +49,19 @@ layout, mas não garante acesso à câmera no celular.
 
 - câmera e upload dependem de consentimento explícito;
 - frames e fotos não são enviados para uma API de análise;
-- a foto original não é incluída no relatório persistido;
+- fotos, frames e landmarks não são gravados em `localStorage`, IndexedDB ou Cache API;
 - preferências de câmera, espelhamento e modo podem ser salvas no `localStorage`;
-- o resultado atual permanece em `sessionStorage`;
+- o resumo derivado usa uma transferência de navegação com validade máxima de 60 segundos,
+  é removido do `sessionStorage` antes da renderização e permanece somente na memória;
+- ao sair do relatório, após 15 minutos ou após 5 minutos em segundo plano, a interface
+  e as referências em memória são descartadas;
+- o service worker armazena somente a interface, imagens estáticas e modelos locais;
 - sexo, gênero, personalidade, saúde e ancestralidade não são inferidos;
 - arquivos enviados por usuários, capturas e relatórios estão no `.gitignore`.
+
+O PDF só existe se o usuário o salvar pelo diálogo do navegador; a partir daí ele fica
+sob controle do sistema operacional. Extensões maliciosas, DevTools ou um dispositivo já
+comprometido ainda podem ler a memória da página enquanto a análise está aberta.
 
 Consulte também [`privacidade.html`](privacidade.html) e [`cookies.html`](cookies.html).
 
@@ -88,6 +96,10 @@ sw.js                      cache offline
 Nunca faça commit de fotos faciais, relatórios reais, arquivos `.env`, tokens,
 certificados ou credenciais. Antes de contribuir, revise o staged diff e rode
 uma ferramenta de secret scanning quando disponível.
+
+O arquivo `_headers` aplica CSP, bloqueio de frames, política de permissões e `no-store`
+em plataformas compatíveis (como Netlify e Cloudflare Pages). GitHub Pages não interpreta
+esse arquivo; por isso as páginas também incluem CSP e política de referrer no próprio HTML.
 
 ## Licença
 
