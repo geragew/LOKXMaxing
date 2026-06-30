@@ -13,7 +13,8 @@ navegador e não envia os frames faciais para um servidor de análise.
 - captura guiada multiângulo com 478 landmarks 3D, blendshapes e matrizes faciais;
 - upload local de JPG, PNG ou WEBP;
 - modos de análise masculino, feminino e neutro/editorial;
-- relatório com calibração PSL estrita, subtiers LOW/MID/HIGH, traits bilíngues e auditoria;
+- relatório com calibração PSL comunitária balanceada, intervalo estimado,
+  subtiers LOW/MID/HIGH, traits bilíngues e auditoria;
 - facial contrast por Michelson adaptado + CIELAB para olhos, sobrancelhas e boca;
 - camada 2D e proxies de profundidade relativa para mandíbula, queixo, nariz e órbita;
 - sexta pose lateral com segmentação local `face-skin/body-skin` para um proxy

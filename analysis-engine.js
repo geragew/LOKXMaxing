@@ -144,17 +144,17 @@ function angleAt3d(a, center, c) {
 function rangeAlignment(value, min, max) {
   const midpoint = (min + max) / 2;
   const halfRange = Math.max((max - min) / 2, 0.001);
-  return round(clamp(100 - (Math.abs(value - midpoint) / halfRange) * 38, 0, 100), 1);
+  return round(clamp(100 - (Math.abs(value - midpoint) / halfRange) * 26, 0, 100), 1);
 }
 
 function targetAlignment(value, target, tolerance) {
-  return round(clamp(100 - (Math.abs(value - target) / Math.max(tolerance, 0.001)) * 35, 0, 100), 1);
+  return round(clamp(100 - (Math.abs(value - target) / Math.max(tolerance, 0.001)) * 28, 0, 100), 1);
 }
 
 function toPsl(scorePercent) {
   const anchors = [
-    [0, 1], [20, 2], [35, 3], [50, 3.85], [60, 4.4],
-    [70, 5], [80, 5.65], [90, 6.45], [96, 7.1], [100, 7.6],
+    [0, 1], [20, 2.4], [35, 3.4], [50, 4.3], [60, 4.9],
+    [68, 5.5], [76, 6], [85, 6.5], [92, 7], [97, 7.5], [100, 7.8],
   ];
   const score = clamp(scorePercent, 0, 100);
   for (let index = 1; index < anchors.length; index += 1) {
@@ -416,7 +416,10 @@ function weightedComponentScore(components) {
 }
 
 function penalty(id, labelEn, labelPt, status, points = 0, note = "") {
-  return { id, labelEn, labelPt, status, points: round(points, 2), note };
+  // Component scores already contain most geometric weaknesses. Keep explicit
+  // penalties small so the same signal is not counted a second time at full weight.
+  const effectivePoints = status === "applied" ? points * 0.35 : 0;
+  return { id, labelEn, labelPt, status, points: round(effectivePoints, 2), note };
 }
 
 function createModeAnalysis(mode, s) {
@@ -851,15 +854,22 @@ export function analyzeLandmarks(rawLandmarks, options = {}) {
   const coreComponentScores = modeAnalysis.components.filter((item) => Number.isFinite(item.scorePercent) && item.weight >= 8).map((item) => item.scorePercent);
   const weakestCoreComponent = coreComponentScores.length ? Math.min(...coreComponentScores) : 0;
   const gateReasons = [];
+  const reliabilityWarnings = [];
+  const liteGateLabel = presentationTarget === "masculine" ? "CHADLITE"
+    : presentationTarget === "feminine" ? "STACYLITE" : "LITE";
   let tierCap = 8;
-  if (preGatePsl >= 5 && harmony < 66) { tierCap = Math.min(tierCap, 4.99); gateReasons.push("HTN requires harmony ≥66"); }
-  if (preGatePsl >= 5 && symmetry < 60) { tierCap = Math.min(tierCap, 4.99); gateReasons.push("HTN requires symmetry ≥60"); }
-  if (preGatePsl >= 5 && featureBalance < 55) { tierCap = Math.min(tierCap, 4.99); gateReasons.push("HTN requires feature balance ≥55"); }
-  if (preGatePsl >= 5 && weakestCoreComponent < 52) { tierCap = Math.min(tierCap, 4.99); gateReasons.push("HTN requires every core component ≥52"); }
-  if (preGatePsl >= 5 && captureConfidence < 68) { tierCap = Math.min(tierCap, 4.99); gateReasons.push("HTN requires capture confidence ≥68"); }
-  if (preGatePsl >= 5.5 && (harmony < 72 || angularity < 58)) { tierCap = Math.min(tierCap, 5.49); gateReasons.push("elite-entry gate not met"); }
-  if (preGatePsl >= 6 && (harmony < 78 || symmetry < 70 || featureBalance < 68)) { tierCap = Math.min(tierCap, 5.99); gateReasons.push("elite consistency gate not met"); }
+  if (preGatePsl >= 5.5 && harmony < 62) { tierCap = Math.min(tierCap, 5.49); gateReasons.push(`${liteGateLabel} entry requires harmony ≥62`); }
+  if (preGatePsl >= 5.5 && featureBalance < 48) { tierCap = Math.min(tierCap, 5.49); gateReasons.push(`${liteGateLabel} entry requires feature balance ≥48`); }
+  if (preGatePsl >= 5.5 && weakestCoreComponent < 38) { tierCap = Math.min(tierCap, 5.49); gateReasons.push(`${liteGateLabel} entry requires every core component ≥38`); }
+  if (preGatePsl >= 6 && (harmony < 70 || angularity < 50 || symmetry < 58)) { tierCap = Math.min(tierCap, 5.99); gateReasons.push("elite consistency gate not met"); }
+  if (preGatePsl >= 6.5 && (harmony < 76 || symmetry < 66 || featureBalance < 62)) { tierCap = Math.min(tierCap, 6.49); gateReasons.push("upper-elite consistency gate not met"); }
+  if (captureConfidence < 68) reliabilityWarnings.push("capture confidence below 68; read the result as a wider estimate");
   const pslScore = round(clamp(Math.min(preGatePsl, tierCap), 1, 8), 2);
+  const uncertainty = round(clamp(0.18 + (100 - captureConfidence) * 0.009, 0.2, 0.62), 2);
+  const estimatedRange = {
+    low: round(clamp(pslScore - uncertainty, 1, 8), 2),
+    high: round(clamp(pslScore + uncertainty, 1, 8), 2),
+  };
   const tier = tierForPsl(pslScore, presentationTarget);
   const geometryIndex = round(average([harmony, angularity, featureBalance]), 1);
   const components = modeAnalysis.components;
@@ -922,13 +932,14 @@ export function analyzeLandmarks(rawLandmarks, options = {}) {
   const potential = buildPotential({ shape, eyeArea: eyeAreaScore, jawline: jawlineScore, featureBalance, captureConfidence });
 
   return {
-    version: 4,
+    version: 5,
     analyzedAt: new Date().toISOString(),
     sourceType: options.sourceType || "unknown",
     presentationTarget,
     faceShape: shape,
     psl: {
       score: pslScore,
+      estimatedRange,
       scale: 8,
       tier,
       confidence: captureConfidence,
@@ -936,13 +947,14 @@ export function analyzeLandmarks(rawLandmarks, options = {}) {
       formula: modeAnalysis.formula,
       components,
       calibration: {
-        version: "strict_piecewise_v4",
+        version: "community_balanced_piecewise_v5",
         weightedPercent: modeAnalysis.weightedPercent,
         calibratedBasePsl,
         preGatePsl: round(preGatePsl, 2),
         weakestCoreComponent: round(weakestCoreComponent, 1),
         tierCap: tierCap < 8 ? tierCap : null,
         gateReasons,
+        reliabilityWarnings,
       },
       disclaimer: "PSL-inspired heuristic; no universal or scientifically validated PSL formula exists.",
     },

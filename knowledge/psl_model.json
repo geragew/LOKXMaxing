@@ -1,9 +1,13 @@
 {
-  "schema_version": 4,
-  "model_name": "LOKX strict multimode 2D + relative-3D PSL-inspired heuristic",
+  "schema_version": 5,
+  "model_name": "LOKX community-balanced multimode 2D + relative-3D PSL-inspired heuristic",
   "scale": {"min": 1, "max": 8},
   "status": "community-inspired_not_scientifically_validated",
   "selection_rule": "The user selects masculine, feminine or neutral/editorial before camera or upload. Sex and gender are never inferred.",
+  "calibration_anchors": {
+    "internal_alignment_percent_to_psl": {"20": 2.4, "35": 3.4, "50": 4.3, "60": 4.9, "68": 5.5, "76": 6.0, "85": 6.5, "92": 7.0, "97": 7.5},
+    "note": "Internal alignment percentages are heuristic scores, not percentiles. Piecewise anchors are tuned to the selected community tier boundaries and remain experimental."
+  },
   "modes": {
     "masculine": {
       "weights": {
@@ -42,15 +46,16 @@
     }
   },
   "penalty_rule": {
-    "score": "mode_weighted_score converted through strict piecewise calibration, minus measurable penalties, then limited by minimum tier gates",
-    "capture_penalty": "(100 - capture_confidence) * 0.006",
-    "additional_rules": ["weakest-link penalty", "component-spread penalty", "HTN/elite minimum consistency gates"],
+    "score": "mode_weighted_score converted through community-balanced piecewise calibration, minus reduced explicit adjustments, then limited only by broad upper-tier consistency gates",
+    "capture_penalty": "((100 - capture_confidence) * 0.006) * 0.35; capture confidence also widens the displayed estimate",
+    "additional_rules": ["weakest-link and component-spread adjustments are reduced to avoid double counting", "capture quality lowers confidence more than aesthetic score", "Chadlite/Chad broad consistency gates"],
     "statuses": ["applied", "clear", "partially_measured", "not_measured"]
   },
   "tier_gates": {
-    "HTN_minimums": {"harmony": 66, "symmetry": 60, "feature_balance": 55, "weakest_core_component": 52, "capture_confidence": 68},
-    "elite_entry_minimums": {"harmony": 72, "angularity": 58},
-    "elite_minimums": {"harmony": 78, "symmetry": 70, "feature_balance": 68}
+    "chadlite_entry_minimums": {"harmony": 62, "feature_balance": 48, "weakest_core_component": 38},
+    "chad_minimums": {"harmony": 70, "angularity": 50, "symmetry": 58},
+    "upper_elite_minimums": {"harmony": 76, "symmetry": 66, "feature_balance": 62},
+    "capture_confidence_rule": "Below 68 widens the estimate and adds a reliability warning; it does not demote the face by itself."
   },
   "tier_ranges": [
     {"min": 1, "max_exclusive": 3, "shared": "Sub-3 / Very Low Tier; dehumanizing forum labels omitted"},

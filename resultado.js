@@ -194,12 +194,15 @@ function renderPotential(analysis) {
 function renderTierContext(analysis) {
   const tier = analysis.psl.tier;
   const calibration = analysis.psl.calibration || {};
+  const estimate = analysis.psl.estimatedRange;
   get("#tier-band-detail").textContent = `${tier.label} // ${tier.translation}`;
-  get("#tier-range-detail").textContent = `PSL BAND ${tier.range} // SUBLEVEL ${tier.sublevel || "--"}`;
+  get("#tier-range-detail").textContent = `PSL BAND ${tier.range} // ESTIMATE ${estimate ? `${estimate.low.toFixed(2)}–${estimate.high.toFixed(2)}` : "--"} // SUBLEVEL ${tier.sublevel || "--"}`;
   const gateText = calibration.gateReasons?.length
     ? `GATE_APPLIED: ${calibration.gateReasons.join("; ")}`
     : "GATE_STATUS: CLEAR // requisitos mínimos do tier atendidos";
-  get("#tier-calibration-detail").textContent = `WEIGHTED ${calibration.weightedPercent ?? "--"}% // CORE_MIN ${calibration.weakestCoreComponent ?? "--"}% → BASE PSL ${calibration.calibratedBasePsl ?? "--"} → FINAL ${analysis.psl.score.toFixed(2)}. ${gateText}`;
+  const reliabilityText = calibration.reliabilityWarnings?.length
+    ? ` // RELIABILITY: ${calibration.reliabilityWarnings.join("; ")}` : "";
+  get("#tier-calibration-detail").textContent = `WEIGHTED ${calibration.weightedPercent ?? "--"}% // CORE_MIN ${calibration.weakestCoreComponent ?? "--"}% → BASE PSL ${calibration.calibratedBasePsl ?? "--"} → FINAL ${analysis.psl.score.toFixed(2)}. ${gateText}${reliabilityText}`;
   const references = get("#tier-reference-list");
   references.replaceChildren();
   if (!tier.references?.length) {
@@ -235,10 +238,13 @@ function renderDimensionAudit(analysis) {
 function renderPrimary(analysis) {
   get("#psl-score").textContent = analysis.psl.score.toFixed(2);
   get("#tier-name").textContent = analysis.psl.tier.label;
-  get("#tier-translation").textContent = analysis.psl.tier.translation;
+  const estimate = analysis.psl.estimatedRange;
+  get("#tier-translation").textContent = estimate
+    ? `${analysis.psl.tier.translation} // estimate ${estimate.low.toFixed(2)}–${estimate.high.toFixed(2)}`
+    : analysis.psl.tier.translation;
   get("#rating-profile").textContent = `PROFILE: ${targetLabels[analysis.presentationTarget] || targetLabels.neutral}`;
   get("#psl-formula").textContent = analysis.psl.formula;
-  get("#psl-penalty").textContent = `CAPTURE_PENALTY: −${analysis.psl.penalty.toFixed(2)} PSL`;
+  get("#psl-penalty").textContent = `SCORING_ADJUSTMENT: −${analysis.psl.penalty.toFixed(2)} PSL`;
   get("#face-shape").textContent = analysis.faceShape.label;
   get("#geometry-index").textContent = Math.round(analysis.scores.geometryIndex);
   get("#confidence-score").textContent = Math.round(analysis.scores.captureConfidence);
