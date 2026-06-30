@@ -14,6 +14,7 @@ revisar manualmente o conteúdo staged antes do commit.
 ## Ciclo de vida biométrico
 
 - fotos e frames são decodificados em memória e descartados depois da análise;
+- máscaras temporárias de segmentação face-skin/body-skin são fechadas após cada inferência;
 - landmarks brutos não são expostos em variáveis globais nem gravados no navegador;
 - o resumo derivado cruza somente uma navegação, expira em 60 segundos e é consumido
   antes de o relatório ser renderizado;

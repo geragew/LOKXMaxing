@@ -67,6 +67,32 @@
       "evidence_level": "technical_reference"
     },
     {
+      "id": "mediapipe_selfie_multiclass_segmenter",
+      "title": "MediaPipe Image Segmenter and SelfieMulticlass model",
+      "type": "official_technical_documentation",
+      "url": "https://developers.google.com/edge/mediapipe/solutions/vision/image_segmenter",
+      "model_card": "https://storage.googleapis.com/mediapipe-assets/Model%20Card%20Multiclass%20Segmentation.pdf",
+      "evidence_level": "technical_reference",
+      "notes": "O modelo Apache-2.0 separa background, hair, body-skin, face-skin, clothes e others; máscaras não são pixel-perfect e degradam com luz ruim, movimento e oclusões."
+    },
+    {
+      "id": "cervicomental_angle_definition",
+      "title": "A comparative study of surgical techniques on the cervicomental angle in human cadavers",
+      "type": "peer_reviewed",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/12437429/",
+      "evidence_level": "measurement_definition",
+      "notes": "Define o ângulo cervicomentoniano pela relação entre o plano submentoniano e o plano vertical do pescoço. O app aplica apenas uma aproximação fotográfica superficial."
+    },
+    {
+      "id": "naini_2016_submental_cervical_angle",
+      "title": "Submental-Cervical Angle: Perceived Attractiveness and Threshold Values of Desire for Surgery",
+      "type": "peer_reviewed",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5083688/",
+      "doi": "10.1007/s12663-015-0872-4",
+      "evidence_level": "research_observation",
+      "notes": "Relata 90°–100° como mais atraente na silhueta idealizada do estudo e até 105° como aceitável. O app usa 90°–105° apenas como referência heurística desse estudo, não como regra universal ou verdade clínica."
+    },
+    {
       "id": "porcheron_2017_facial_contrast",
       "title": "Facial Contrast Is a Cross-Cultural Cue for Perceiving Age",
       "type": "peer_reviewed",

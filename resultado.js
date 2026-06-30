@@ -223,7 +223,12 @@ function renderDimensionAudit(analysis) {
   get("#dimension-3d-status").textContent = `${audit.depthProxy.status.toUpperCase()} // ${Math.round(audit.depthProxy.confidence)}%`;
   get("#dimension-3d-detail").textContent = `${audit.depthProxy.source} // ${audit.depthProxy.transformationMatrixSamples || 0} matrizes de transformação`;
   get("#dimension-pose-score").textContent = `${Math.round(audit.depthProxy.poseCoverage)}%`;
-  get("#dimension-pose-detail").textContent = `${audit.depthProxy.completedSteps}/5 poses // yaw span ${audit.depthProxy.yawSpan} // pitch span ${audit.depthProxy.pitchSpan}`;
+  get("#dimension-pose-detail").textContent = `${audit.depthProxy.completedSteps}/6 poses // yaw span ${audit.depthProxy.yawSpan} // pitch span ${audit.depthProxy.pitchSpan}`;
+  const neck = audit.depthProxy.neckSegmentation;
+  get("#dimension-neck-status").textContent = neck?.status ? neck.status.toUpperCase() : "NOT_MEASURED";
+  get("#dimension-neck-detail").textContent = Number.isFinite(neck?.angle) && neck.confidence >= 35
+    ? `${neck.angle}° // confidence ${Math.round(neck.confidence)}% // ${neck.sampleCount || 1} samples`
+    : neck?.reason || "side profile + visible shoulders required";
   get("#dimension-limit-detail").textContent = audit.limitation;
 }
 

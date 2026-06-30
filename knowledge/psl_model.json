@@ -70,7 +70,8 @@
     "Skin-surface uniformity and facial contrast remain capture-dependent proxies affected by lighting, makeup, camera and compression; they do not measure skin health.",
     "Hair occlusion, beard occlusion, body fat, makeup, styling and facial contrast are not guessed from landmarks.",
     "Gonial, ramus and orbital outputs are explicitly surface/depth proxies from the MediaPipe model, never anatomical or metric measurements.",
-    "Cervicomental angle stays unavailable because the face mesh has no validated neck contour landmarks.",
+    "Photographic cervicomental angle is attempted only from a dedicated side profile using the SelfieMulticlass face-skin/body-skin boundary and is rejected below the confidence threshold.",
+    "The photographic neck proxy is not cephalometry, anatomy, diagnosis or a metric 3D measurement and may fail with beard, hair, collars, accessories, occlusion or poor lighting.",
     "Webcam RGB depth is relative and non-metric; metric 3D requires calibrated stereo, structured light, LiDAR or a validated 3D scanner.",
     "No output predicts identity, personality, health, ancestry or universal attractiveness."
   ]

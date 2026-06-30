@@ -52,7 +52,7 @@ function poseFromLandmarks(points) {
 }
 
 function summarizeMultiView(samples, aspectRatio) {
-  const groups = Array.from({ length: 5 }, (_, step) => samples.filter((sample) => sample.step === step));
+  const groups = Array.from({ length: 6 }, (_, step) => samples.filter((sample) => sample.step === step));
   const poses = groups.map((group) => {
     const points = medianLandmarks(group, aspectRatio);
     return points ? poseFromLandmarks(points) : null;
@@ -60,7 +60,7 @@ function summarizeMultiView(samples, aspectRatio) {
   const completedSteps = groups.filter((group) => group.length >= 2).length;
   const yawSpan = poses[1] && poses[2] ? Math.abs(poses[1].yaw - poses[2].yaw) : 0;
   const pitchSpan = poses[3] && poses[4] ? Math.abs(poses[3].pitch - poses[4].pitch) : 0;
-  const stepCoverage = completedSteps / 5 * 100;
+  const stepCoverage = completedSteps / 6 * 100;
   const yawCoverage = clamp((yawSpan / 0.14) * 100, 0, 100);
   const pitchCoverage = clamp((pitchSpan / 0.11) * 100, 0, 100);
   const poseCoverage = average([stepCoverage, yawCoverage, pitchCoverage]);
@@ -112,6 +112,7 @@ function relativeDepthSignals(points, supplemental = {}) {
     yawSpan: supplemental.yawSpan ?? 0,
     pitchSpan: supplemental.pitchSpan ?? 0,
     expressionNeutrality: supplemental.expressionNeutrality ?? null,
+    neckSignal: supplemental.neckSignal || null,
     nasalProjection: round(nasalProjection, 2),
     chinProjection: round(chinProjection, 2),
     orbitalSupport: round(orbitalSupport, 2),
@@ -871,6 +872,10 @@ export function analyzeLandmarks(rawLandmarks, options = {}) {
   const orbitalSupportScore = rangeAlignment(depthSignals.orbitalSupport, 1.5, 7);
   const ramusSurfaceScore = rangeAlignment(depthSignals.ramusSurfaceRatio, 13, 28);
   const surfaceGonialScore = rangeAlignment(depthSignals.surfaceGonialAngle, 105, 135);
+  const neckMeasurementUsable = Number.isFinite(depthSignals.neckSignal?.angle)
+    && depthSignals.neckSignal.confidence >= 35;
+  const cervicomentalScore = neckMeasurementUsable
+    ? rangeAlignment(depthSignals.neckSignal.angle, 90, 105) : null;
   const softTissueDefinition = average([angularity, jawlineScore, cheekboneScore]);
   const contrastRaw = contrastSignalUsable
     ? `L* ${round(imageSignals.luminanceContrast ?? 0, 2)}% | EYES ${round(imageSignals.eyeContrast ?? 0, 2)} | BROWS ${round(imageSignals.browContrast ?? 0, 2)} | MOUTH ${round(imageSignals.mouthContrast ?? 0, 2)} | ΔE ${round(imageSignals.colorContrastDeltaE ?? 0, 2)}`
@@ -908,7 +913,7 @@ export function analyzeLandmarks(rawLandmarks, options = {}) {
     trait({ id: "relative_chin_depth", en: "Relative Chin Depth Proxy", pt: "Proxy de profundidade relativa do queixo", score: depthSignals.zUsable ? chinDepthScore : null, raw: depthSignals.zUsable ? depthSignals.chinProjection : "Z_UNAVAILABLE", unit: "% face width", confidence: depthSignals.depthConfidence >= 65 ? "medium" : "low", source: depthSignals.zUsable ? depthSignals.source : "not_measured", note: "Superfície estimada; não mede projeção óssea clínica." }),
     trait({ id: "gonial_surface_3d", en: "3D Surface Gonial Proxy", pt: "Proxy 3D superficial do ângulo goníaco", score: depthSignals.zUsable ? surfaceGonialScore : null, raw: depthSignals.zUsable ? depthSignals.surfaceGonialAngle : "DEPTH_REQUIRED", unit: "° surface mesh", confidence: "low", source: depthSignals.zUsable ? depthSignals.source : "not_measured", note: "Ângulo da malha de tecido mole. Não é o ângulo goníaco anatômico obtido por cefalometria." }),
     trait({ id: "ramus_surface", en: "Ramus-Surface Length Proxy", pt: "Proxy superficial do comprimento do ramo", score: depthSignals.zUsable ? ramusSurfaceScore : null, raw: depthSignals.zUsable ? depthSignals.ramusSurfaceRatio : "DEPTH_REQUIRED", unit: "% face height", confidence: "low", source: depthSignals.zUsable ? depthSignals.source : "not_measured", note: "Distância na malha entre região lateral e contorno mandibular; não mede o osso." }),
-    trait({ id: "cervicomental", en: "Cervicomental Angle", pt: "Ângulo cervicomentoniano", score: null, raw: "NECK_LANDMARKS_REQUIRED", confidence: "unsupported", source: "not_measured" }),
+    trait({ id: "cervicomental", en: "Photographic Cervicomental Angle Proxy", pt: "Proxy fotográfico do ângulo cervicomentoniano", score: cervicomentalScore, raw: neckMeasurementUsable ? depthSignals.neckSignal.angle : depthSignals.neckSignal?.reason || "PROFILE_NECK_MASK_REQUIRED", unit: "° photographic", confidence: depthSignals.neckSignal?.confidence >= 65 ? "medium" : depthSignals.neckSignal?.confidence >= 35 ? "low" : "unsupported", source: neckMeasurementUsable ? "face_body_skin_segmentation_proxy" : "not_measured", note: neckMeasurementUsable ? `Face-skin/body-skin boundary; confidence ${round(depthSignals.neckSignal.confidence)}%. Não é cefalometria nem diagnóstico.` : "Exige perfil lateral, ombros visíveis e linha sob o queixo sem cabelo, barba densa, gola ou acessórios." }),
     trait({ id: "orbital_support_depth", en: "Orbital-Support Depth Proxy", pt: "Proxy de suporte orbital em profundidade", score: depthSignals.zUsable ? orbitalSupportScore : null, raw: depthSignals.zUsable ? depthSignals.orbitalSupport : "DEPTH_REQUIRED", unit: "% face width", confidence: "low", source: depthSignals.zUsable ? depthSignals.source : "not_measured", note: "Diferença relativa entre superfície ocular e infraorbital; não é vetor orbital clínico." }),
     trait({ id: "soft_tissue_definition", en: "Soft-Tissue Definition Proxy", pt: "Proxy de definição de tecido mole", score: softTissueDefinition, raw: round(softTissueDefinition), unit: "% contour definition", confidence: "low", source: "2d_3d_composite_proxy", note: "Descreve contorno e transições superficiais; não estima gordura corporal nem saúde." }),
   ];
@@ -992,6 +997,7 @@ export function analyzeLandmarks(rawLandmarks, options = {}) {
         yawSpan: depthSignals.yawSpan,
         pitchSpan: depthSignals.pitchSpan,
         metricScale: false,
+        neckSegmentation: depthSignals.neckSignal,
       },
       limitation: "RGB webcam depth is model-relative and non-metric; clinical or millimetric 3D requires calibrated stereo, structured light, LiDAR or a validated 3D scanner.",
     },
@@ -1010,7 +1016,7 @@ export function analyzeLandmarks(rawLandmarks, options = {}) {
       "PSL e tiers são taxonomia cultural de fóruns, não medição científica de beleza.",
       "2D e profundidade relativa da malha não medem estrutura óssea, gordura corporal, saúde, ancestralidade ou personalidade.",
       "Contraste usa Michelson adaptado e CIELAB em regiões de olhos, sobrancelhas e boca; luz e maquiagem alteram a leitura.",
-      "A camada 3D é um proxy não métrico. Cervicomental real exige pescoço e perfil padronizado fora da malha facial.",
+      "O cervicomentoniano fotográfico usa perfil e fronteira face-skin/body-skin; medida clínica real exige protocolo validado e não é fornecida.",
       "Preferências de rostos variam significativamente entre indivíduos e culturas.",
     ],
   };
@@ -1024,6 +1030,7 @@ export function analyzeLandmarkSamples(samples, options = {}) {
   if (!points) throw new Error("Nenhuma amostra frontal válida foi capturada.");
   const confidence = clamp(58 + selected.length * 2.2, 58, 96);
   const depthSignals = summarizeMultiView(samples, aspectRatio);
+  depthSignals.neckSignal = options.neckSignal || null;
   return analyzeLandmarks(points, {
     aspectRatio: 1,
     sourceType: options.sourceType || "guided_scan",

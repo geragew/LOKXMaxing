@@ -2,8 +2,10 @@ import {
   DrawingUtils,
   FaceLandmarker,
   FilesetResolver,
+  ImageSegmenter,
 } from "./assets/mediapipe/vision_bundle.mjs";
 import { analyzeImageSignals, analyzeLandmarks, analyzeLandmarkSamples } from "./analysis-engine.js";
+import { aggregateCervicomentalSignals, extractCervicomentalSignal } from "./neck-analysis.js";
 
 const GREEN = "#b9ff4f";
 const GREEN_FAINT = "rgba(185, 255, 79, 0.16)";
@@ -73,6 +75,11 @@ const steps = [
     detail: "Continue imóvel até a barra chegar ao final.",
     duration: 2600,
   },
+  {
+    title: "Vire de perfil e enquadre o pescoço.",
+    detail: "Mostre do topo da cabeça aos ombros; afaste cabelo, gola e acessórios da linha sob o queixo.",
+    duration: 3400,
+  },
 ];
 
 const qualityCanvas = document.createElement("canvas");
@@ -87,6 +94,8 @@ let drawingUtils = null;
 let modelPromise = null;
 let imageLandmarker = null;
 let imageModelPromise = null;
+let neckSegmenter = null;
+let neckModelPromise = null;
 let animationFrame = 0;
 let lastVideoTime = -1;
 let lastFrameAt = 0;
@@ -106,6 +115,9 @@ let lastVisualSignalAt = 0;
 let referencePitch = null;
 let firstYawDirection = 0;
 let firstPitchDirection = 0;
+let neckSignalSamples = [];
+let neckSignal = null;
+let lastNeckSignalAt = 0;
 let navigatingToReport = false;
 
 const ANALYSIS_TRANSFER_KEY = "lokx_analysis_result_v1";
@@ -210,6 +222,10 @@ function discardCapturedBiometrics({ preserveTransfer = false, closeModels = fal
   referencePitch = null;
   firstYawDirection = 0;
   firstPitchDirection = 0;
+  neckSignalSamples.fill(null);
+  neckSignalSamples.length = 0;
+  neckSignal = null;
+  lastNeckSignalAt = 0;
   delete window.lokxLastScan;
   analysisPhotoFile.value = "";
   context.clearRect(0, 0, canvas.width, canvas.height);
@@ -221,10 +237,13 @@ function discardCapturedBiometrics({ preserveTransfer = false, closeModels = fal
   if (closeModels) {
     try { faceLandmarker?.close(); } catch {}
     try { imageLandmarker?.close(); } catch {}
+    try { neckSegmenter?.close(); } catch {}
     faceLandmarker = null;
     imageLandmarker = null;
+    neckSegmenter = null;
     modelPromise = null;
     imageModelPromise = null;
+    neckModelPromise = null;
   }
 }
 
@@ -244,6 +263,10 @@ function resetSequence() {
   referencePitch = null;
   firstYawDirection = 0;
   firstPitchDirection = 0;
+  neckSignalSamples.fill(null);
+  neckSignalSamples.length = 0;
+  neckSignal = null;
+  lastNeckSignalAt = 0;
   restartButton.disabled = false;
   viewResultsButton.hidden = true;
   updateInstruction();
@@ -254,7 +277,7 @@ function updateInstruction() {
   if (scanComplete) {
     instructionIndex.textContent = "OK";
     instruction.textContent = "Mapeamento concluído.";
-    scanDetail.textContent = "Landmarks descartados após gerar o resumo de uso único.";
+    scanDetail.textContent = "Landmarks e máscaras de pescoço descartados após gerar o resumo de uso único.";
     progressStage.textContent = "CAPTURA_COMPLETA";
     return;
   }
@@ -304,8 +327,13 @@ async function initializeModel() {
     }
 
     drawingUtils = new DrawingUtils(context);
-    modelStatus.textContent = "MODEL_STATUS: READY // 478 3D LANDMARKS + MATRIX";
+    modelStatus.textContent = "MODEL_STATUS: READY // FACE_3D // NECK_MODEL_LOADING";
     resetSequence();
+    initializeNeckSegmenter().then(() => {
+      modelStatus.textContent = "MODEL_STATUS: READY // FACE_3D + NECK_MASK";
+    }).catch(() => {
+      modelStatus.textContent = "MODEL_STATUS: READY // FACE_3D // NECK_MASK_RETRY";
+    });
     return faceLandmarker;
   })().catch((error) => {
     modelPromise = null;
@@ -346,6 +374,33 @@ async function initializeImageModel() {
   return imageModelPromise;
 }
 
+async function initializeNeckSegmenter() {
+  if (neckSegmenter) return neckSegmenter;
+  if (neckModelPromise) return neckModelPromise;
+  neckModelPromise = (async () => {
+    const wasmPath = new URL("./assets/mediapipe/wasm", import.meta.url).href;
+    const modelPath = new URL("./assets/models/selfie_multiclass_256x256.tflite", import.meta.url).href;
+    const vision = await FilesetResolver.forVisionTasks(wasmPath);
+    const options = {
+      baseOptions: { modelAssetPath: modelPath, delegate: "GPU" },
+      runningMode: "IMAGE",
+      outputCategoryMask: true,
+      outputConfidenceMasks: false,
+    };
+    try {
+      neckSegmenter = await ImageSegmenter.createFromOptions(vision, options);
+    } catch {
+      options.baseOptions.delegate = "CPU";
+      neckSegmenter = await ImageSegmenter.createFromOptions(vision, options);
+    }
+    return neckSegmenter;
+  })().catch((error) => {
+    neckModelPromise = null;
+    throw error;
+  });
+  return neckModelPromise;
+}
+
 async function prepareUploadedImage(file) {
   const bitmap = await createImageBitmap(file);
   const maximumSide = 1800;
@@ -383,12 +438,20 @@ async function analyzeUploadedPhoto(file) {
     const result = landmarker.detect(workCanvas);
     if (!result.faceLandmarks?.length) throw new Error("Nenhum rosto foi encontrado na foto.");
     if (result.faceLandmarks.length > 1) throw new Error("Use uma foto com apenas um rosto.");
+    let uploadedNeckSignal = null;
+    try {
+      await initializeNeckSegmenter();
+      uploadedNeckSignal = analyzeNeckSnapshot(workCanvas, result.faceLandmarks[0]);
+    } catch {
+      uploadedNeckSignal = { status: "unavailable", reason: "NECK_SEGMENTATION_FAILED", confidence: 0 };
+    }
     const analysis = analyzeLandmarks(result.faceLandmarks[0], {
       aspectRatio: workCanvas.width / workCanvas.height,
       sourceType: "consented_photo_upload",
       presentationTarget: presentationTarget.value,
       confidence: 72,
       imageSignals: analyzeImageSignals(workCanvas, result.faceLandmarks[0]),
+      depthSignals: { neckSignal: uploadedNeckSignal },
     });
     storeOneTimeAnalysis(analysis);
     modelStatus.textContent = "MODEL_STATUS: PHOTO_ANALYSIS_READY";
@@ -651,6 +714,21 @@ function aggregateVisualSignals(samples) {
   return aggregate;
 }
 
+function analyzeNeckSnapshot(snapshot, landmarks) {
+  if (!neckSegmenter) return null;
+  let signal = null;
+  neckSegmenter.segment(snapshot, (result) => {
+    try {
+      const mask = result.categoryMask;
+      if (!mask) return;
+      signal = extractCervicomentalSignal(mask.getAsUint8Array(), mask.width, mask.height, landmarks);
+    } finally {
+      result.close?.();
+    }
+  });
+  return signal;
+}
+
 function captureLandmarkSample(landmarks, now, result) {
   if (now - lastSampleAt < 250 || sessionSamples.length >= 100) return;
   lastSampleAt = now;
@@ -675,6 +753,25 @@ function captureLandmarkSample(landmarks, now, result) {
     frontVisualSignalSamples.push(analyzeImageSignals(snapshot, landmarks));
     frontVisualSignals = aggregateVisualSignals(frontVisualSignalSamples);
     wipeCanvas(snapshot);
+  }
+  if (stepIndex === steps.length - 1 && now - lastNeckSignalAt >= 850 && neckSignalSamples.length < 4 && video.videoWidth && video.videoHeight) {
+    lastNeckSignalAt = now;
+    const snapshot = document.createElement("canvas");
+    const scale = Math.min(1, 720 / video.videoWidth);
+    snapshot.width = Math.max(1, Math.round(video.videoWidth * scale));
+    snapshot.height = Math.max(1, Math.round(video.videoHeight * scale));
+    snapshot.getContext("2d").drawImage(video, 0, 0, snapshot.width, snapshot.height);
+    try {
+      const signal = analyzeNeckSnapshot(snapshot, landmarks);
+      if (signal) {
+        neckSignalSamples.push(signal);
+        neckSignal = aggregateCervicomentalSignals(neckSignalSamples);
+      }
+    } catch {
+      neckSignal = { status: "unavailable", reason: "NECK_SEGMENTATION_FAILED", confidence: 0 };
+    } finally {
+      wipeCanvas(snapshot);
+    }
   }
 }
 
@@ -702,6 +799,16 @@ function poseProgressReady(landmarks) {
     return true;
   }
   if (stepIndex === 4) return Math.abs(pitchDelta) >= 0.014 && Math.sign(pitchDelta) === -firstPitchDirection;
+  if (stepIndex === steps.length - 1) {
+    if (!neckSegmenter) {
+      scanDetail.textContent = "Carregando segmentação local de face-skin/body-skin para o pescoço...";
+      initializeNeckSegmenter().then(updateInstruction).catch(() => {
+        scanDetail.textContent = "O modelo de pescoço não carregou; tente reiniciar a captura.";
+      });
+      return false;
+    }
+    return Math.abs(yaw) >= 0.09;
+  }
   return true;
 }
 
@@ -734,6 +841,7 @@ function advanceSequence(quality, landmarks, now, result) {
           sourceType: currentMode === "display" ? "shared_window" : "guided_camera_scan",
           presentationTarget: presentationTarget.value,
           imageSignals: frontVisualSignals,
+          neckSignal,
         });
         storeOneTimeAnalysis(analysis);
         sessionSamples.fill(null);
@@ -741,6 +849,9 @@ function advanceSequence(quality, landmarks, now, result) {
         frontVisualSignals = null;
         frontVisualSignalSamples.fill(null);
         frontVisualSignalSamples.length = 0;
+        neckSignalSamples.fill(null);
+        neckSignalSamples.length = 0;
+        neckSignal = null;
         viewResultsButton.hidden = false;
       } catch (error) {
         setCameraError(`A captura terminou, mas o relatório falhou: ${error.message}`);

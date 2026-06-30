@@ -16,6 +16,8 @@ navegador e não envia os frames faciais para um servidor de análise.
 - relatório com calibração PSL estrita, subtiers LOW/MID/HIGH, traits bilíngues e auditoria;
 - facial contrast por Michelson adaptado + CIELAB para olhos, sobrancelhas e boca;
 - camada 2D e proxies de profundidade relativa para mandíbula, queixo, nariz e órbita;
+- sexta pose lateral com segmentação local `face-skin/body-skin` para um proxy
+  fotográfico do ângulo cervicomentoniano;
 - painel para webcams físicas e virtuais, incluindo fontes como Iriun;
 - comparação versus com consentimento;
 - exportação do relatório para PDF pelo diálogo nativo do navegador;
@@ -84,6 +86,11 @@ para a faixa ampla — não sósias, matches ou notas verificadas.
 O `z` do MediaPipe e a captura multiângulo permitem descrever profundidade relativa da
 malha, não reconstrução 3D métrica. Medidas clínicas ou em milímetros exigem câmeras
 calibradas, stereo, structured light, LiDAR ou scanner 3D validado.
+
+O ângulo cervicomentoniano usa a separação multiclass entre pele do rosto e pele do
+corpo numa foto de perfil com os ombros visíveis. Cabelo, barba densa, gola, acessórios,
+fundo e luz podem impedir a medição; nesses casos o relatório rejeita o valor em vez de
+preencher um número sem suporte. Esse proxy não é cefalometria nem avaliação médica.
 
 As configurações dos três modos estão documentadas em
 [`knowledge/psl_model.json`](knowledge/psl_model.json), e as fontes catalogadas

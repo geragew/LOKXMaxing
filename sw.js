@@ -1,5 +1,5 @@
-const CACHE_VERSION = "lokx-shell-v10";
-const RUNTIME_CACHE = "lokx-static-v10";
+const CACHE_VERSION = "lokx-shell-v11";
+const RUNTIME_CACHE = "lokx-static-v11";
 const SHELL_ASSETS = [
   "./",
   "./index.html",
@@ -12,6 +12,7 @@ const SHELL_ASSETS = [
   "./app.js",
   "./scanner.js",
   "./analysis-engine.js",
+  "./neck-analysis.js",
   "./resultado.js",
   "./cameras.js",
   "./pwa.js",
@@ -71,7 +72,7 @@ self.addEventListener("fetch", (event) => {
         if (response.ok) {
           const isBiometricPath = /^(?:uploads|captures|recordings|reports|exports)(?:\/|$)/i.test(relativePath);
           const isStaticAsset = /^assets\//i.test(relativePath)
-            && /\.(?:js|mjs|png|svg|webp|wasm|task)$/i.test(relativePath);
+            && /\.(?:js|mjs|png|svg|webp|wasm|task|tflite)$/i.test(relativePath);
           const shouldCache = !isBiometricPath && isStaticAsset;
           if (shouldCache) {
             const copy = response.clone();
