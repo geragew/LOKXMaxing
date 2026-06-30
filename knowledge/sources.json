@@ -67,6 +67,48 @@
       "evidence_level": "technical_reference"
     },
     {
+      "id": "porcheron_2017_facial_contrast",
+      "title": "Facial Contrast Is a Cross-Cultural Cue for Perceiving Age",
+      "type": "peer_reviewed",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5524771/",
+      "doi": "10.3389/fpsyg.2017.01208",
+      "evidence_level": "research_observation",
+      "notes": "Define contraste entre olhos, sobrancelhas e boca e a pele adjacente com contraste de Michelson adaptado em CIELAB."
+    },
+    {
+      "id": "jones_russell_ward_2015_contrast",
+      "title": "Cosmetics Alter Biologically-Based Factors of Beauty: Evidence from Facial Contrast",
+      "type": "peer_reviewed",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC10426925/",
+      "doi": "10.1177/147470491501300113",
+      "evidence_level": "research_observation",
+      "notes": "Apoia separar contrastes de olhos, sobrancelhas e boca e ressalta efeitos de cosméticos e dimorfismo visual."
+    },
+    {
+      "id": "monocular_sfm_review_2024",
+      "title": "Monocular visual SLAM, visual odometry, and structure from motion methods applied to 3D reconstruction",
+      "type": "peer_reviewed_review",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11415689/",
+      "evidence_level": "technical_reference",
+      "notes": "Documenta ambiguidade de escala e menor precisão/completude da reconstrução monocular frente a setups multi-view calibrados."
+    },
+    {
+      "id": "forum_psl_ratings_examples_2025",
+      "title": "PSL ratings (men)",
+      "type": "community_forum",
+      "url": "https://forum.looksmaxxing.com/threads/psl-ratings-men.91547/",
+      "evidence_level": "community_taxonomy",
+      "notes": "Usado somente para nomes de faixas e exemplos culturais. As notas não são verificadas nem científicas."
+    },
+    {
+      "id": "forum_psl_levels_examples_2025",
+      "title": "PSL Levels",
+      "type": "community_forum",
+      "url": "https://forum.looksmaxxing.com/threads/psl-levels.24879/",
+      "evidence_level": "community_taxonomy",
+      "notes": "Fonte comunitária adicional para exemplos amplos; há divergências com outras escalas de fórum."
+    },
+    {
       "id": "gq_psl_scale_2025",
       "title": "Inside the PSL Scale: The Looksmaxxer Rating System",
       "type": "journalistic_interviews",

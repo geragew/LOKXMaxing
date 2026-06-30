@@ -1,6 +1,6 @@
 {
-  "schema_version": 3,
-  "model_name": "LOKX multimode PSL-inspired heuristic",
+  "schema_version": 4,
+  "model_name": "LOKX strict multimode 2D + relative-3D PSL-inspired heuristic",
   "scale": {"min": 1, "max": 8},
   "status": "community-inspired_not_scientifically_validated",
   "selection_rule": "The user selects masculine, feminine or neutral/editorial before camera or upload. Sex and gender are never inferred.",
@@ -42,25 +42,36 @@
     }
   },
   "penalty_rule": {
-    "score": "mode_weighted_score converted to 1-8 minus only applied measurable penalties",
+    "score": "mode_weighted_score converted through strict piecewise calibration, minus measurable penalties, then limited by minimum tier gates",
     "capture_penalty": "(100 - capture_confidence) * 0.006",
+    "additional_rules": ["weakest-link penalty", "component-spread penalty", "HTN/elite minimum consistency gates"],
     "statuses": ["applied", "clear", "partially_measured", "not_measured"]
+  },
+  "tier_gates": {
+    "HTN_minimums": {"harmony": 66, "symmetry": 60, "feature_balance": 55, "weakest_core_component": 52, "capture_confidence": 68},
+    "elite_entry_minimums": {"harmony": 72, "angularity": 58},
+    "elite_minimums": {"harmony": 78, "symmetry": 70, "feature_balance": 68}
   },
   "tier_ranges": [
     {"min": 1, "max_exclusive": 3, "shared": "Sub-3 / Very Low Tier; dehumanizing forum labels omitted"},
-    {"min": 3, "max_exclusive": 4, "shared": "Low Tier / LTN"},
-    {"min": 4, "max_exclusive": 5, "shared": "Mid Tier / MTN"},
-    {"min": 5, "max_exclusive": 6, "shared": "High Tier / HTN"},
-    {"min": 6, "max_exclusive": 7, "masculine": "Chadlite", "feminine": "Stacylite"},
-    {"min": 7, "max_exclusive": 7.75, "masculine": "Chad", "feminine": "Stacy"},
-    {"min": 7.75, "max": 8, "masculine": "True Adam", "feminine": "True Eve"}
+    {"min": 3, "max_exclusive": 4, "shared": "LTN with LOW/MID/HIGH sublevels"},
+    {"min": 4, "max_exclusive": 5, "shared": "MTN with LOW/MID/HIGH sublevels"},
+    {"min": 5, "max_exclusive": 5.5, "shared": "HTN with LOW/MID/HIGH sublevels"},
+    {"min": 5.5, "max_exclusive": 6, "masculine": "Chadlite", "feminine": "Stacylite"},
+    {"min": 6, "max_exclusive": 6.5, "masculine": "Chad", "feminine": "Stacy"},
+    {"min": 6.5, "max_exclusive": 7, "masculine": "Giga Chad", "feminine": "High Stacy"},
+    {"min": 7, "max_exclusive": 7.5, "masculine": "Adamlite", "feminine": "Evelite"},
+    {"min": 7.5, "max": 8, "masculine": "True Adam", "feminine": "True Eve"}
   ],
   "measurement_limits": [
     "Percent scores are internal heuristic alignment, not population percentiles.",
     "Chin projection, deep-set eyes, hunter eyes, jaw structure and cheekbones are labeled as 2D visual proxies where appropriate.",
-    "Skin-surface uniformity and facial contrast use low-confidence pixel proxies that vary with lighting, makeup, camera and compression; they do not measure skin health.",
+    "Facial contrast uses adapted Michelson luminance contrast and CIELAB differences across eyes, eyebrows and mouth versus surrounding facial skin.",
+    "Skin-surface uniformity and facial contrast remain capture-dependent proxies affected by lighting, makeup, camera and compression; they do not measure skin health.",
     "Hair occlusion, beard occlusion, body fat, makeup, styling and facial contrast are not guessed from landmarks.",
-    "Gonial angle, ramus length, orbital vector and cervicomental angle are not claimed from a frontal webcam image.",
+    "Gonial, ramus and orbital outputs are explicitly surface/depth proxies from the MediaPipe model, never anatomical or metric measurements.",
+    "Cervicomental angle stays unavailable because the face mesh has no validated neck contour landmarks.",
+    "Webcam RGB depth is relative and non-metric; metric 3D requires calibrated stereo, structured light, LiDAR or a validated 3D scanner.",
     "No output predicts identity, personality, health, ancestry or universal attractiveness."
   ]
 }

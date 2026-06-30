@@ -43,7 +43,7 @@
 
       <section class="report-hero psl-hero" id="summary">
         <div class="report-hero__copy">
-          <span class="report-path">C:\LOKX\REPORTS\<b>PSL_SCAN_V2.JSON</b></span>
+          <span class="report-path">C:\LOKX\REPORTS\<b>PSL_SCAN_V4.JSON</b></span>
           <p class="report-kicker">// SUMMARY / RESUMO</p>
           <h1>YOUR FACE.<br /><span>YOUR DATA.</span></h1>
           <p>
@@ -70,6 +70,60 @@
         <footer>
           <span id="psl-penalty">CAPTURE_PENALTY: --</span>
           <p>Escala cultural de fórum; não existe fórmula PSL universal ou clinicamente validada.</p>
+        </footer>
+      </section>
+
+      <section class="tier-context-panel">
+        <header>
+          <div>
+            <span>TIER_CALIBRATION::STRICT_V4</span>
+            <h2 id="tier-band-detail">--</h2>
+            <p id="tier-range-detail">--</p>
+          </div>
+          <p id="tier-calibration-detail">--</p>
+        </header>
+        <div class="tier-reference-block">
+          <span>FORUM REFERENCE BOARD / REFERÊNCIAS DO TIER AMPLO</span>
+          <div id="tier-reference-list"></div>
+          <p>São nomes citados em discussões comunitárias para a faixa ampla. Não são sósias, matches faciais nem notas verificadas.</p>
+          <nav>
+            <a href="https://forum.looksmaxxing.com/threads/psl-ratings-men.91547/" target="_blank" rel="noreferrer">fonte comunitária 01 ↗</a>
+            <a href="https://forum.looksmaxxing.com/threads/psl-levels.24879/" target="_blank" rel="noreferrer">fonte comunitária 02 ↗</a>
+          </nav>
+        </div>
+      </section>
+
+      <section class="dimension-audit-panel">
+        <header>
+          <span>DIMENSION_AUDIT::2D_PLUS_RELATIVE_3D</span>
+          <h2>2D geometry + 3D depth proxy<br />geometria 2D + profundidade relativa.</h2>
+        </header>
+        <div class="dimension-audit-grid">
+          <article>
+            <span>2D_LAYER</span>
+            <strong id="dimension-2d-status">--</strong>
+            <p id="dimension-2d-detail">--</p>
+          </article>
+          <article>
+            <span>RELATIVE_3D_LAYER</span>
+            <strong id="dimension-3d-status">--</strong>
+            <p id="dimension-3d-detail">--</p>
+          </article>
+          <article>
+            <span>POSE_COVERAGE</span>
+            <strong id="dimension-pose-score">--</strong>
+            <p id="dimension-pose-detail">--</p>
+          </article>
+          <article>
+            <span>METRIC_SCALE</span>
+            <strong>NO / NÃO</strong>
+            <p id="dimension-limit-detail">--</p>
+          </article>
+        </div>
+        <footer>
+          <a href="https://developers.google.com/edge/mediapipe/solutions/vision/face_landmarker/web_js" target="_blank" rel="noreferrer">MediaPipe 3D output ↗</a>
+          <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC5524771/" target="_blank" rel="noreferrer">facial contrast method ↗</a>
+          <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC11415689/" target="_blank" rel="noreferrer">monocular 3D limits ↗</a>
         </footer>
       </section>
 
@@ -241,9 +295,9 @@
         <span>[METHOD + LIMITS / MÉTODO + LIMITES]</span>
         <p>
           PSL e tier são taxonomias de comunidades online. Lente, distância, pose, gordura facial,
-          expressão e iluminação alteram o resultado 2D. O sistema não mede osso real, pele, cabelo,
+          expressão e iluminação alteram o resultado 2D e a profundidade relativa. O sistema não mede osso real, pele, cabelo,
           saúde da pele, ancestralidade ou personalidade. Sinais de pele e contraste são proxies
-          visuais de baixa confiança, dependentes da luz, e não recomendações médicas.
+          visuais dependentes da captura, e não recomendações médicas. A camada 3D da webcam não possui escala métrica.
         </p>
       </section>
       <section class="method-note method-note--privacy">
@@ -260,12 +314,12 @@
     <section class="empty-report" id="empty-report" hidden>
       <span>REPORT_ERROR::NEW_SCAN_REQUIRED</span>
       <h1>Novo mapeamento necessário.</h1>
-      <p>Conclua outra captura para gerar o relatório multimodo PSL-inspired v3.</p>
+      <p>Conclua outra captura para gerar o relatório multimodo 2D + 3D-proxy v4.</p>
       <a href="index.html">[ VOLTAR_AO_SCANNER ]</a>
     </section>
 
     <footer class="report-footer">
-      <span>LOKX_REPORT_V3</span>
+      <span>LOKX_REPORT_V4</span>
       <button id="download-pdf-footer" type="button">[ BAIXAR_PDF ]</button>
       <button id="destroy-report-footer" type="button">[ ENCERRAR_E_APAGAR ]</button>
       <a href="privacidade.html">privacidade.txt</a>

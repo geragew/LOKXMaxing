@@ -10,10 +10,12 @@ navegador e não envia os frames faciais para um servidor de análise.
 
 ## Recursos
 
-- captura guiada com 478 landmarks e controle de qualidade;
+- captura guiada multiângulo com 478 landmarks 3D, blendshapes e matrizes faciais;
 - upload local de JPG, PNG ou WEBP;
 - modos de análise masculino, feminino e neutro/editorial;
-- relatório com PSL-inspired score, tier, traits bilíngues e auditoria de penalidades;
+- relatório com calibração PSL estrita, subtiers LOW/MID/HIGH, traits bilíngues e auditoria;
+- facial contrast por Michelson adaptado + CIELAB para olhos, sobrancelhas e boca;
+- camada 2D e proxies de profundidade relativa para mandíbula, queixo, nariz e órbita;
 - painel para webcams físicas e virtuais, incluindo fontes como Iriun;
 - comparação versus com consentimento;
 - exportação do relatório para PDF pelo diálogo nativo do navegador;
@@ -72,6 +74,16 @@ pesquisa. Medidas 2D variam com lente, distância, pose, expressão e iluminaç�
 Sinais de pele e contraste são proxies visuais de baixa confiança e não medem
 saúde. Projeção do queixo, estrutura óssea, deep-set eyes e hunter eyes são
 rotulados como proxies quando uma imagem frontal não sustenta uma conclusão.
+
+A versão 4 usa uma curva PSL conservadora, penalidade pelo componente mais fraco,
+penalidade por grande dispersão e gates mínimos antes de liberar HTN ou tiers de elite.
+LOW/MID/HIGH subdividem cada faixa, mas continuam sendo taxonomia informal de fórum.
+Os famosos mostrados no relatório são referências citadas em discussões comunitárias
+para a faixa ampla — não sósias, matches ou notas verificadas.
+
+O `z` do MediaPipe e a captura multiângulo permitem descrever profundidade relativa da
+malha, não reconstrução 3D métrica. Medidas clínicas ou em milímetros exigem câmeras
+calibradas, stereo, structured light, LiDAR ou scanner 3D validado.
 
 As configurações dos três modos estão documentadas em
 [`knowledge/psl_model.json`](knowledge/psl_model.json), e as fontes catalogadas

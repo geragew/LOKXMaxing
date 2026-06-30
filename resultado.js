@@ -60,7 +60,7 @@ function setBar(selector, value) {
 
 function sourceClass(trait) {
   if (trait.scorePercent === null || trait.source === "not_measured") return "is-unsupported";
-  if (["2d_proxy", "community_proxy", "contour_classification", "pixel_proxy"].includes(trait.source)) return "is-proxy";
+  if (trait.source?.includes("proxy") || ["contour_classification"].includes(trait.source)) return "is-proxy";
   return "is-measured";
 }
 
@@ -191,6 +191,42 @@ function renderPotential(analysis) {
   });
 }
 
+function renderTierContext(analysis) {
+  const tier = analysis.psl.tier;
+  const calibration = analysis.psl.calibration || {};
+  get("#tier-band-detail").textContent = `${tier.label} // ${tier.translation}`;
+  get("#tier-range-detail").textContent = `PSL BAND ${tier.range} // SUBLEVEL ${tier.sublevel || "--"}`;
+  const gateText = calibration.gateReasons?.length
+    ? `GATE_APPLIED: ${calibration.gateReasons.join("; ")}`
+    : "GATE_STATUS: CLEAR // requisitos mínimos do tier atendidos";
+  get("#tier-calibration-detail").textContent = `WEIGHTED ${calibration.weightedPercent ?? "--"}% // CORE_MIN ${calibration.weakestCoreComponent ?? "--"}% → BASE PSL ${calibration.calibratedBasePsl ?? "--"} → FINAL ${analysis.psl.score.toFixed(2)}. ${gateText}`;
+  const references = get("#tier-reference-list");
+  references.replaceChildren();
+  if (!tier.references?.length) {
+    const empty = document.createElement("b");
+    empty.textContent = "SEM_REFERÊNCIAS_CONFIÁVEIS_PARA_ESTA_FAIXA";
+    references.append(empty);
+    return;
+  }
+  tier.references.forEach((name) => {
+    const item = document.createElement("b");
+    item.textContent = name;
+    references.append(item);
+  });
+}
+
+function renderDimensionAudit(analysis) {
+  const audit = analysis.dimensionAudit;
+  if (!audit) return;
+  get("#dimension-2d-status").textContent = `${audit.twoDimensional.status.toUpperCase()} // ${Math.round(audit.twoDimensional.confidence)}%`;
+  get("#dimension-2d-detail").textContent = audit.twoDimensional.basis;
+  get("#dimension-3d-status").textContent = `${audit.depthProxy.status.toUpperCase()} // ${Math.round(audit.depthProxy.confidence)}%`;
+  get("#dimension-3d-detail").textContent = `${audit.depthProxy.source} // ${audit.depthProxy.transformationMatrixSamples || 0} matrizes de transformação`;
+  get("#dimension-pose-score").textContent = `${Math.round(audit.depthProxy.poseCoverage)}%`;
+  get("#dimension-pose-detail").textContent = `${audit.depthProxy.completedSteps}/5 poses // yaw span ${audit.depthProxy.yawSpan} // pitch span ${audit.depthProxy.pitchSpan}`;
+  get("#dimension-limit-detail").textContent = audit.limitation;
+}
+
 function renderPrimary(analysis) {
   get("#psl-score").textContent = analysis.psl.score.toFixed(2);
   get("#tier-name").textContent = analysis.psl.tier.label;
@@ -207,6 +243,8 @@ function renderPrimary(analysis) {
   get("#strongest-trait").textContent = strongest.termEn;
   get("#strongest-trait-pt").textContent = strongest.termPt;
   renderComponents(analysis);
+  renderTierContext(analysis);
+  renderDimensionAudit(analysis);
   renderModeAnalysis(analysis);
   renderTraits(analysis);
   renderAttractionDrivers(analysis);

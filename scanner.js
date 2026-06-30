@@ -101,6 +101,11 @@ let lastSampleAt = 0;
 let scanComplete = false;
 let sessionSamples = [];
 let frontVisualSignals = null;
+let frontVisualSignalSamples = [];
+let lastVisualSignalAt = 0;
+let referencePitch = null;
+let firstYawDirection = 0;
+let firstPitchDirection = 0;
 let navigatingToReport = false;
 
 const ANALYSIS_TRANSFER_KEY = "lokx_analysis_result_v1";
@@ -199,6 +204,12 @@ function discardCapturedBiometrics({ preserveTransfer = false, closeModels = fal
   sessionSamples.fill(null);
   sessionSamples.length = 0;
   frontVisualSignals = null;
+  frontVisualSignalSamples.fill(null);
+  frontVisualSignalSamples.length = 0;
+  lastVisualSignalAt = 0;
+  referencePitch = null;
+  firstYawDirection = 0;
+  firstPitchDirection = 0;
   delete window.lokxLastScan;
   analysisPhotoFile.value = "";
   context.clearRect(0, 0, canvas.width, canvas.height);
@@ -227,6 +238,12 @@ function resetSequence() {
   sessionSamples.length = 0;
   sessionSamples = [];
   frontVisualSignals = null;
+  frontVisualSignalSamples.fill(null);
+  frontVisualSignalSamples.length = 0;
+  lastVisualSignalAt = 0;
+  referencePitch = null;
+  firstYawDirection = 0;
+  firstPitchDirection = 0;
   restartButton.disabled = false;
   viewResultsButton.hidden = true;
   updateInstruction();
@@ -287,7 +304,7 @@ async function initializeModel() {
     }
 
     drawingUtils = new DrawingUtils(context);
-    modelStatus.textContent = "MODEL_STATUS: READY // 478 LANDMARKS";
+    modelStatus.textContent = "MODEL_STATUS: READY // 478 3D LANDMARKS + MATRIX";
     resetSequence();
     return faceLandmarker;
   })().catch((error) => {
@@ -598,7 +615,43 @@ function drawMesh(landmarks) {
   });
 }
 
-function captureLandmarkSample(landmarks, now) {
+function blendshapeNeutrality(result) {
+  const categories = result?.faceBlendshapes?.[0]?.categories || [];
+  const expressive = new Set([
+    "jawOpen", "mouthSmileLeft", "mouthSmileRight", "mouthFrownLeft", "mouthFrownRight",
+    "mouthPucker", "mouthFunnel", "mouthPressLeft", "mouthPressRight", "browInnerUp",
+    "browDownLeft", "browDownRight", "cheekSquintLeft", "cheekSquintRight",
+  ]);
+  const peak = categories.reduce((highest, item) => expressive.has(item.categoryName)
+    ? Math.max(highest, item.score || 0) : highest, 0);
+  return Math.max(0, Math.min(100, (1 - peak) * 100));
+}
+
+function transformationMatrix(result) {
+  const matrix = result?.facialTransformationMatrixes?.[0];
+  const values = matrix?.data || matrix;
+  if (!values || typeof values.length !== "number") return null;
+  return Array.from(values).slice(0, 16).map((value) => Number(Number(value).toFixed(6)));
+}
+
+function aggregateVisualSignals(samples) {
+  if (!samples.length) return null;
+  const keys = [
+    "skinHomogeneity", "facialContrast", "luminanceContrast", "colorContrastDeltaE",
+    "eyeContrast", "browContrast", "mouthContrast", "contrastConfidence",
+    "lightingUniformity", "brightness",
+  ];
+  const aggregate = { status: "multi_frame_pixel_proxy", sampleCount: samples.length };
+  keys.forEach((key) => {
+    const values = samples.map((sample) => sample[key]).filter(Number.isFinite).sort((a, b) => a - b);
+    if (!values.length) return;
+    const middle = Math.floor(values.length / 2);
+    aggregate[key] = values.length % 2 ? values[middle] : (values[middle - 1] + values[middle]) / 2;
+  });
+  return aggregate;
+}
+
+function captureLandmarkSample(landmarks, now, result) {
   if (now - lastSampleAt < 250 || sessionSamples.length >= 100) return;
   lastSampleAt = now;
   sessionSamples.push({
@@ -609,28 +662,60 @@ function captureLandmarkSample(landmarks, now) {
       Number(point.y.toFixed(5)),
       Number(point.z.toFixed(5)),
     ]),
+    expressionNeutrality: Number(blendshapeNeutrality(result).toFixed(2)),
+    transformationMatrix: transformationMatrix(result),
   });
-  if (stepIndex === 0 && !frontVisualSignals && video.videoWidth && video.videoHeight) {
+  if (stepIndex === 0 && now - lastVisualSignalAt >= 650 && frontVisualSignalSamples.length < 5 && video.videoWidth && video.videoHeight) {
+    lastVisualSignalAt = now;
     const snapshot = document.createElement("canvas");
     const scale = Math.min(1, 720 / video.videoWidth);
     snapshot.width = Math.max(1, Math.round(video.videoWidth * scale));
     snapshot.height = Math.max(1, Math.round(video.videoHeight * scale));
     snapshot.getContext("2d").drawImage(video, 0, 0, snapshot.width, snapshot.height);
-    frontVisualSignals = analyzeImageSignals(snapshot, landmarks);
+    frontVisualSignalSamples.push(analyzeImageSignals(snapshot, landmarks));
+    frontVisualSignals = aggregateVisualSignals(frontVisualSignalSamples);
     wipeCanvas(snapshot);
   }
 }
 
-function advanceSequence(quality, landmarks, now) {
+function poseProgressReady(landmarks) {
+  if (!landmarks?.length) return false;
+  const faceWidth = Math.max(Math.abs(landmarks[454].x - landmarks[234].x), 0.0001);
+  const faceMidX = (landmarks[234].x + landmarks[454].x) / 2;
+  const yaw = (landmarks[1].x - faceMidX) / faceWidth;
+  const eyeY = (landmarks[33].y + landmarks[133].y + landmarks[263].y + landmarks[362].y) / 4;
+  const pitch = (landmarks[1].y - eyeY) / Math.max(Math.abs(landmarks[152].y - eyeY), 0.0001);
+  if (stepIndex === 0) {
+    referencePitch = referencePitch === null ? pitch : referencePitch * 0.85 + pitch * 0.15;
+    return Math.abs(yaw) < 0.055;
+  }
+  if (stepIndex === 1) {
+    if (Math.abs(yaw) < 0.035) return false;
+    firstYawDirection ||= Math.sign(yaw);
+    return true;
+  }
+  if (stepIndex === 2) return Math.abs(yaw) >= 0.035 && Math.sign(yaw) === -firstYawDirection;
+  const pitchDelta = pitch - (referencePitch ?? pitch);
+  if (stepIndex === 3) {
+    if (Math.abs(pitchDelta) < 0.014) return false;
+    firstPitchDirection ||= Math.sign(pitchDelta);
+    return true;
+  }
+  if (stepIndex === 4) return Math.abs(pitchDelta) >= 0.014 && Math.sign(pitchDelta) === -firstPitchDirection;
+  return true;
+}
+
+function advanceSequence(quality, landmarks, now, result) {
   if (scanComplete || !faceLandmarker) return;
   const delta = Math.min(100, Math.max(0, now - previousTick));
   previousTick = now;
   const activeStep = steps[stepIndex];
-  const canAdvance = quality.face && quality.size && quality.light && (!activeStep.requireCenter || quality.center);
+  const poseReady = poseProgressReady(landmarks);
+  const canAdvance = quality.face && quality.size && quality.light && poseReady && (!activeStep.requireCenter || quality.center);
 
   if (canAdvance) {
     stepElapsed += delta;
-    captureLandmarkSample(landmarks, now);
+    captureLandmarkSample(landmarks, now, result);
   }
 
   const finishedDuration = steps.slice(0, stepIndex).reduce((total, step) => total + step.duration, 0);
@@ -654,6 +739,8 @@ function advanceSequence(quality, landmarks, now) {
         sessionSamples.fill(null);
         sessionSamples.length = 0;
         frontVisualSignals = null;
+        frontVisualSignalSamples.fill(null);
+        frontVisualSignalSamples.length = 0;
         viewResultsButton.hidden = false;
       } catch (error) {
         setCameraError(`A captura terminou, mas o relatório falhou: ${error.message}`);
@@ -683,7 +770,7 @@ function renderFrame(now) {
     const quality = evaluateQuality(landmarks);
     drawMesh(landmarks);
     updateQualityPanel(quality);
-    advanceSequence(quality, landmarks, now);
+    advanceSequence(quality, landmarks, now, result);
     updateFps(now);
     lastFrameAt = now;
   } else if (now - lastFrameAt > 700) {

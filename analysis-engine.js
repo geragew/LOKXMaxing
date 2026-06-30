@@ -5,6 +5,10 @@ function pointDistance(a, b) {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
+function pointDistance3d(a, b) {
+  return Math.hypot(a.x - b.x, a.y - b.y, (a.z || 0) - (b.z || 0));
+}
+
 function average(values) {
   const usable = values.filter(Number.isFinite);
   return usable.length ? usable.reduce((sum, value) => sum + value, 0) / usable.length : 0;
@@ -36,6 +40,86 @@ function medianLandmarks(samples, aspectRatio) {
   }));
 }
 
+function poseFromLandmarks(points) {
+  const faceWidth = pointDistance(points[234], points[454]);
+  const faceMidX = (points[234].x + points[454].x) / 2;
+  const eyeY = average([points[33].y, points[133].y, points[263].y, points[362].y]);
+  const eyeChinHeight = Math.max(Math.abs(points[152].y - eyeY), 0.0001);
+  return {
+    yaw: (points[1].x - faceMidX) / Math.max(faceWidth, 0.0001),
+    pitch: (points[1].y - eyeY) / eyeChinHeight,
+  };
+}
+
+function summarizeMultiView(samples, aspectRatio) {
+  const groups = Array.from({ length: 5 }, (_, step) => samples.filter((sample) => sample.step === step));
+  const poses = groups.map((group) => {
+    const points = medianLandmarks(group, aspectRatio);
+    return points ? poseFromLandmarks(points) : null;
+  });
+  const completedSteps = groups.filter((group) => group.length >= 2).length;
+  const yawSpan = poses[1] && poses[2] ? Math.abs(poses[1].yaw - poses[2].yaw) : 0;
+  const pitchSpan = poses[3] && poses[4] ? Math.abs(poses[3].pitch - poses[4].pitch) : 0;
+  const stepCoverage = completedSteps / 5 * 100;
+  const yawCoverage = clamp((yawSpan / 0.14) * 100, 0, 100);
+  const pitchCoverage = clamp((pitchSpan / 0.11) * 100, 0, 100);
+  const poseCoverage = average([stepCoverage, yawCoverage, pitchCoverage]);
+  const expressionValues = samples.map((sample) => sample.expressionNeutrality).filter(Number.isFinite);
+  const expressionNeutrality = expressionValues.length ? average(expressionValues) : null;
+  const matrixSamples = samples.filter((sample) => Array.isArray(sample.transformationMatrix) && sample.transformationMatrix.length === 16).length;
+  return {
+    source: "guided_multiview_rgb_depth_proxy",
+    completedSteps,
+    sampleCount: samples.length,
+    matrixSamples,
+    poseCoverage: round(poseCoverage, 1),
+    yawSpan: round(yawSpan * 100, 2),
+    pitchSpan: round(pitchSpan * 100, 2),
+    depthConfidence: round(clamp(35 + stepCoverage * 0.25 + yawCoverage * 0.16 + pitchCoverage * 0.12, 35, 88), 1),
+    expressionNeutrality: Number.isFinite(expressionNeutrality) ? round(expressionNeutrality, 1) : null,
+  };
+}
+
+function relativeDepthSignals(points, supplemental = {}) {
+  const faceWidth = Math.max(pointDistance(points[234], points[454]), 0.0001);
+  const faceHeight = Math.max(pointDistance(points[10], points[152]), 0.0001);
+  const cheekPlaneZ = average([points[234].z, points[454].z]);
+  const jawPlaneZ = average([points[172].z, points[397].z]);
+  const eyeDepth = average([points[468]?.z, points[473]?.z].filter(Number.isFinite));
+  const infraorbitalDepth = average([points[117].z, points[346].z]);
+  const zValues = points.map((point) => point.z).filter(Number.isFinite);
+  const zUsable = zValues.length >= 478 && standardDeviation(zValues) > 0.0001;
+  const nasalProjection = Math.abs(points[1].z - cheekPlaneZ) / faceWidth * 100;
+  const chinProjection = Math.abs(points[152].z - jawPlaneZ) / faceWidth * 100;
+  const orbitalSupport = Math.abs(eyeDepth - infraorbitalDepth) / faceWidth * 100;
+  const ramusSurfaceRatio = average([
+    pointDistance3d(points[234], points[172]),
+    pointDistance3d(points[454], points[397]),
+  ]) / faceHeight * 100;
+  const surfaceGonialAngle = average([
+    angleAt3d(points[234], points[172], points[152]),
+    angleAt3d(points[454], points[397], points[152]),
+  ]);
+  const singleViewConfidence = zUsable ? 42 : 0;
+  return {
+    source: supplemental.source || "single_view_model_relative_depth_proxy",
+    zUsable,
+    depthConfidence: supplemental.depthConfidence ?? singleViewConfidence,
+    poseCoverage: supplemental.poseCoverage ?? 0,
+    completedSteps: supplemental.completedSteps ?? 1,
+    sampleCount: supplemental.sampleCount ?? 1,
+    matrixSamples: supplemental.matrixSamples ?? 0,
+    yawSpan: supplemental.yawSpan ?? 0,
+    pitchSpan: supplemental.pitchSpan ?? 0,
+    expressionNeutrality: supplemental.expressionNeutrality ?? null,
+    nasalProjection: round(nasalProjection, 2),
+    chinProjection: round(chinProjection, 2),
+    orbitalSupport: round(orbitalSupport, 2),
+    ramusSurfaceRatio: round(ramusSurfaceRatio, 2),
+    surfaceGonialAngle: round(surfaceGonialAngle, 2),
+  };
+}
+
 function tiltAngle(inner, outer) {
   return Math.atan2(inner.y - outer.y, Math.abs(outer.x - inner.x)) * (180 / Math.PI);
 }
@@ -48,18 +132,39 @@ function angleAt(a, center, c) {
   return degrees;
 }
 
+function angleAt3d(a, center, c) {
+  const first = { x: a.x - center.x, y: a.y - center.y, z: (a.z || 0) - (center.z || 0) };
+  const second = { x: c.x - center.x, y: c.y - center.y, z: (c.z || 0) - (center.z || 0) };
+  const dot = first.x * second.x + first.y * second.y + first.z * second.z;
+  const magnitude = Math.max(pointDistance3d(a, center) * pointDistance3d(c, center), 0.000001);
+  return Math.acos(clamp(dot / magnitude, -1, 1)) * (180 / Math.PI);
+}
+
 function rangeAlignment(value, min, max) {
   const midpoint = (min + max) / 2;
   const halfRange = Math.max((max - min) / 2, 0.001);
-  return round(clamp(100 - (Math.abs(value - midpoint) / halfRange) * 22, 0, 100), 1);
+  return round(clamp(100 - (Math.abs(value - midpoint) / halfRange) * 38, 0, 100), 1);
 }
 
 function targetAlignment(value, target, tolerance) {
-  return round(clamp(100 - (Math.abs(value - target) / Math.max(tolerance, 0.001)) * 25, 0, 100), 1);
+  return round(clamp(100 - (Math.abs(value - target) / Math.max(tolerance, 0.001)) * 35, 0, 100), 1);
 }
 
 function toPsl(scorePercent) {
-  return round(1 + clamp(scorePercent, 0, 100) * 0.07, 2);
+  const anchors = [
+    [0, 1], [20, 2], [35, 3], [50, 3.85], [60, 4.4],
+    [70, 5], [80, 5.65], [90, 6.45], [96, 7.1], [100, 7.6],
+  ];
+  const score = clamp(scorePercent, 0, 100);
+  for (let index = 1; index < anchors.length; index += 1) {
+    const [rightScore, rightPsl] = anchors[index];
+    const [leftScore, leftPsl] = anchors[index - 1];
+    if (score <= rightScore) {
+      const progress = (score - leftScore) / Math.max(rightScore - leftScore, 0.001);
+      return round(leftPsl + progress * (rightPsl - leftPsl), 2);
+    }
+  }
+  return 7.6;
 }
 
 function scoreLabel(score) {
@@ -112,46 +217,65 @@ function bilateralEyeScore(leftTilt, rightTilt, leftAspect, rightAspect) {
 }
 
 function tierForPsl(psl, target = "neutral") {
-  const variants = {
+  const bands = [
+    { id: "foundation", min: 1, max: 3, code: "SUB-3" },
+    { id: "low", min: 3, max: 4, code: "LTN" },
+    { id: "mid", min: 4, max: 5, code: "MTN" },
+    { id: "high", min: 5, max: 5.5, code: "HTN" },
+    { id: "lite", min: 5.5, max: 6, code: target === "feminine" ? "STACYLITE" : target === "masculine" ? "CHADLITE" : "LITE" },
+    { id: "elite", min: 6, max: 6.5, code: target === "feminine" ? "STACY" : target === "masculine" ? "CHAD" : "ELITE" },
+    { id: "mythic", min: 6.5, max: 7, code: target === "feminine" ? "HIGH STACY" : target === "masculine" ? "GIGA CHAD" : "HIGH ELITE" },
+    { id: "legend", min: 7, max: 7.5, code: target === "feminine" ? "EVELITE" : target === "masculine" ? "ADAMLITE" : "LEGEND" },
+    { id: "apex", min: 7.5, max: 8.001, code: target === "feminine" ? "TRUE EVE" : target === "masculine" ? "TRUE ADAM" : "APEX" },
+  ];
+  const band = bands.find((item) => psl >= item.min && psl < item.max) || bands[0];
+  const progress = clamp((psl - band.min) / Math.max(band.max - band.min, 0.001), 0, 0.999);
+  const sublevel = progress < 1 / 3 ? "LOW" : progress < 2 / 3 ? "MID" : "HIGH";
+  const aliases = {
+    foundation: target === "feminine" ? "Very Low Tier / faixa muito baixa" : "Very Low Tier / faixa muito baixa",
+    low: target === "feminine" ? "Low-Tier Becky / tier feminino baixo" : "Low-Tier Normie / normie de tier baixo",
+    mid: target === "feminine" ? "Mid-Tier Becky / tier feminino médio" : "Mid-Tier Normie / normie de tier médio",
+    high: target === "feminine" ? "High-Tier Becky / tier feminino alto" : "High-Tier Normie / normie de tier alto",
+    lite: "Elite-entry band / entrada do tier de elite",
+    elite: "Elite forum band / tier de elite de fórum",
+    mythic: "Upper elite band / tier de elite superior",
+    legend: "Legend band / tier lendário",
+    apex: "Mythic apex / ápice mítico",
+  };
+  const forumReferencesByTarget = {
     masculine: {
-      foundation: ["Sub-3 / Very Low Tier", "Abaixo da linha média do fórum"],
-      low: ["LTN — Low-Tier Normie", "Normie de tier baixo"],
-      mid: ["MTN — Mid-Tier Normie", "Normie de tier médio"],
-      high: ["HTN — High-Tier Normie", "Normie de tier alto"],
-      lite: ["Chadlite", "Tier de elite inicial"],
-      elite: ["Chad", "Tier de elite"],
-      mythic: ["True Adam / Mythic", "Tier mítico"],
+      low: ["Michael Cera"], mid: ["Shia LaBeouf"], high: ["Timothée Chalamet"],
+      lite: ["Cristiano Ronaldo", "Neymar", "Taylor Lautner"],
+      elite: ["Zayn Malik", "Chris Hemsworth"], mythic: ["Henry Cavill"],
+      legend: ["Alain Delon", "Francisco Lachowski"], apex: [], foundation: [],
     },
     feminine: {
-      foundation: ["Sub-3 / Very Low Tier", "Abaixo da linha média do fórum"],
-      low: ["Low-Tier Becky", "Becky de tier baixo"],
-      mid: ["Mid-Tier Becky", "Becky de tier médio"],
-      high: ["High-Tier Becky", "Becky de tier alto"],
-      lite: ["Stacylite", "Tier de elite inicial"],
-      elite: ["Stacy", "Tier de elite"],
-      mythic: ["True Eve / Mythic", "Tier mítico"],
+      low: [], mid: [], high: ["Kendall Jenner"], lite: ["Kendall Jenner"],
+      elite: ["Charlize Theron"], mythic: [], legend: [], apex: [], foundation: [],
     },
     neutral: {
-      foundation: ["Sub-3 / Very Low Tier", "Abaixo da linha média do fórum"],
-      low: ["Low Tier", "Tier baixo"],
-      mid: ["Mid Tier", "Tier médio"],
-      high: ["High Tier", "Tier alto"],
-      lite: ["Chadlite / Stacylite", "Tier de elite inicial"],
-      elite: ["Chad / Stacy", "Tier de elite"],
-      mythic: ["True Adam / True Eve", "Tier mítico"],
+      low: ["Michael Cera"], mid: ["Shia LaBeouf"], high: ["Timothée Chalamet", "Kendall Jenner"],
+      lite: ["Cristiano Ronaldo", "Neymar", "Taylor Lautner", "Kendall Jenner"],
+      elite: ["Zayn Malik", "Chris Hemsworth", "Charlize Theron"], mythic: ["Henry Cavill"],
+      legend: ["Alain Delon", "Francisco Lachowski"], apex: [], foundation: [],
     },
   };
-  const names = variants[target] || variants.neutral;
-  let id = "foundation";
-  let range = "1.00–2.99";
-  if (psl >= 7.75) { id = "mythic"; range = "7.75–8.00"; }
-  else if (psl >= 7) { id = "elite"; range = "7.00–7.74"; }
-  else if (psl >= 6) { id = "lite"; range = "6.00–6.99"; }
-  else if (psl >= 5) { id = "high"; range = "5.00–5.99"; }
-  else if (psl >= 4) { id = "mid"; range = "4.00–4.99"; }
-  else if (psl >= 3) { id = "low"; range = "3.00–3.99"; }
-  const [label, translation] = names[id];
-  return { id, label, translation, range, taxonomy: "forum-inspired / inspirado em fóruns" };
+  const forumReferences = forumReferencesByTarget[target] || forumReferencesByTarget.neutral;
+  return {
+    id: band.id,
+    code: band.code,
+    sublevel,
+    label: band.id === "foundation" ? band.code : `${sublevel} ${band.code}`,
+    translation: aliases[band.id],
+    range: `${band.min.toFixed(2)}–${Math.min(8, band.max - 0.01).toFixed(2)}`,
+    references: forumReferences[band.id],
+    referenceNote: "Broad-band forum examples only; not a facial match or verified score.",
+    referenceSources: [
+      "https://forum.looksmaxxing.com/threads/psl-ratings-men.91547/",
+      "https://forum.looksmaxxing.com/threads/psl-levels.24879/",
+    ],
+    taxonomy: "forum-inspired / inspirado em fóruns",
+  };
 }
 
 function trait({ id, en, pt, score, raw, unit = "", confidence = "medium", source = "community_proxy", note = "" }) {
@@ -240,6 +364,29 @@ function standardDeviation(values) {
   return Math.sqrt(average(values.map((value) => (value - mean) ** 2)));
 }
 
+function srgbChannelToLinear(value) {
+  const channel = value / 255;
+  return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+}
+
+function rgbToLab(red, green, blue) {
+  const r = srgbChannelToLinear(red);
+  const g = srgbChannelToLinear(green);
+  const b = srgbChannelToLinear(blue);
+  const x = (r * 0.4124 + g * 0.3576 + b * 0.1805) / 0.95047;
+  const y = r * 0.2126 + g * 0.7152 + b * 0.0722;
+  const z = (r * 0.0193 + g * 0.1192 + b * 0.9505) / 1.08883;
+  const transform = (value) => value > 0.008856 ? Math.cbrt(value) : 7.787 * value + 16 / 116;
+  const fx = transform(x);
+  const fy = transform(y);
+  const fz = transform(z);
+  return { l: 116 * fy - 16, a: 500 * (fx - fy), b: 200 * (fy - fz) };
+}
+
+function adaptedMichelson(skin, feature) {
+  return Math.abs((skin - feature) / Math.max(skin + feature, 0.001));
+}
+
 function level3(score) {
   if (score >= 70) return { en: "high", pt: "alta" };
   if (score >= 45) return { en: "moderate", pt: "moderada" };
@@ -282,6 +429,8 @@ function createModeAnalysis(mode, s) {
     penalty("long_midface", "Very long midface", "Midface muito longo", s.middleThird > 38 ? "applied" : "clear", s.middleThird > 38 ? 0.1 : 0),
     penalty("capture_quality", "Capture quality", "Qualidade da captura", capturePenalty > 0.08 ? "applied" : "clear", capturePenalty, "Combina confiança, enquadramento e estabilidade; não identifica sozinho a causa."),
     penalty("lighting_uniformity", "Uneven lighting signal", "Sinal de iluminação desigual", Number.isFinite(s.lightingUniformity) ? (s.lightingUniformity < 45 ? "applied" : "clear") : "not_measured", Number.isFinite(s.lightingUniformity) && s.lightingUniformity < 45 ? 0.06 : 0, "Estimativa de pixels; sombras intencionais também podem afetar o valor."),
+    penalty("expression_neutrality", "Expression neutrality", "Neutralidade da expressão", Number.isFinite(s.depthSignals?.expressionNeutrality) ? (s.depthSignals.expressionNeutrality < 68 ? "applied" : "clear") : "not_measured", Number.isFinite(s.depthSignals?.expressionNeutrality) && s.depthSignals.expressionNeutrality < 68 ? 0.08 : 0, "Blendshapes detectam sorriso, abertura da boca e contrações; não interpretam emoção."),
+    penalty("multiview_coverage", "2D/3D pose coverage", "Cobertura de poses 2D/3D", s.depthSignals?.source === "guided_multiview_rgb_depth_proxy" ? (s.depthSignals.poseCoverage < 55 ? "applied" : "clear") : "not_measured", s.depthSignals?.source === "guided_multiview_rgb_depth_proxy" && s.depthSignals.poseCoverage < 55 ? 0.1 : 0, "A profundidade é relativa ao modelo; não é escaneamento métrico."),
   ];
 
   let components = [];
@@ -291,6 +440,8 @@ function createModeAnalysis(mode, s) {
   let drivers = [];
 
   if (mode === "masculine") {
+    const masculineExtras = Number.isFinite(s.facialContrast)
+      ? s.featureBalance * 0.9 + s.facialContrast * 0.1 : s.featureBalance;
     const jawClass = s.jawlineScore >= 82 ? { en: "angular", pt: "angular" }
       : s.jawlineScore >= 68 ? { en: "defined", pt: "definida" }
         : s.jawlineScore >= 53 ? { en: "moderate", pt: "moderada" }
@@ -310,7 +461,7 @@ function createModeAnalysis(mode, s) {
       modeComponent("harmony", "Facial Harmony", "Harmonia facial", 35, s.harmony, "symmetry + proportional balance"),
       modeComponent("dimorphism", "Masculine Dimorphism", "Dimorfismo masculino", 25, s.masculineDimorphism, "jaw + fWHR + lower third + eye framing"),
       modeComponent("angularity", "Angularity / Structure", "Angularidade / estrutura", 25, s.angularity, "2D contour proxy; not bone"),
-      modeComponent("extras", "Extra Feature Balance", "Equilíbrio de características extras", 15, s.featureBalance, "eyes + nose + mouth + lips"),
+      modeComponent("extras", "Extra Feature Balance", "Equilíbrio de características extras", 15, masculineExtras, "eyes + nose + mouth + lips + measured contrast"),
     ];
     formula = "harmony×0.35 + masculine_dimorphism×0.25 + angularity×0.25 + extras×0.15 − measurable penalties";
     classifications = [
@@ -342,6 +493,8 @@ function createModeAnalysis(mode, s) {
     const feminineSoftness = clamp((100 - s.angularity) * 0.45 + s.feminineDimorphism * 0.35 + s.lipScore * 0.2, 0, 100);
     const feminineHarmony = s.harmony * 0.45 + s.featureBalance * 0.22 + s.symmetry * 0.13 + s.feminineDimorphism * 0.2;
     const eyeLipBalance = s.eyeAreaScore * 0.58 + s.lipScore * 0.42;
+    const eyeLipVisualQuality = Number.isFinite(s.facialContrast)
+      ? eyeLipBalance * 0.88 + s.facialContrast * 0.12 : eyeLipBalance;
     const centerBalance = average([s.eyeSpacingScore, s.mouthNoseScore, s.noseScore]);
     const cheekLowerBalance = s.cheekboneScore * 0.55 + s.lowerThirdScore * 0.45;
     const jawClass = s.jawCheekRatio < 0.74 ? { en: "delicate", pt: "delicada" }
@@ -363,7 +516,7 @@ function createModeAnalysis(mode, s) {
     components = [
       modeComponent("harmony", "Feminine Harmony", "Harmonia feminina", 25, feminineHarmony, "global proportions + feature balance"),
       modeComponent("softness", "Facial Softness / Femininity", "Suavidade / feminilidade visual", 18, feminineSoftness, "jaw taper + feature softness; user-selected target"),
-      modeComponent("eyes_lips", "Eye and Lip Proportions", "Proporções de olhos e lábios", 18, eyeLipBalance, "eye framing + lip balance"),
+      modeComponent("eyes_lips", "Eye/Lip Proportions + Contrast", "Proporções de olhos/lábios + contraste", 18, eyeLipVisualQuality, "eye framing + lip balance + measured feature contrast"),
       modeComponent("symmetry", "Symmetry", "Simetria", 12, s.symmetry, "bilateral landmark geometry"),
       modeComponent("center_balance", "Nose/Eye/Mouth Balance", "Equilíbrio nariz/olhos/boca", 10, centerBalance, "central feature ratios"),
       modeComponent("cheek_lower", "Cheekbones and Lower Third", "Maçãs do rosto e lower third", 10, cheekLowerBalance, "2D contour balance"),
@@ -406,6 +559,12 @@ function createModeAnalysis(mode, s) {
     const photogenicProxy = average([s.captureConfidence, s.symmetry, s.eyeBalance, proportionScore]);
     const visualImpact = average([s.eyeAreaScore, s.angularity, s.cheekboneScore, distinctiveness]);
     const editorialPotential = s.harmony * 0.28 + distinctiveness * 0.28 + photogenicProxy * 0.2 + visualImpact * 0.24;
+    const visualPresentation = average([distinctiveness, visualImpact, Number.isFinite(s.facialContrast) ? s.facialContrast : photogenicProxy]);
+    const visualStyleClass = Number.isFinite(s.facialContrast) && s.facialContrast >= 68 && s.angularity >= 58
+      ? { en: "graphic / high-contrast", pt: "gráfico / alto contraste" }
+      : distinctiveness >= 68 ? { en: "editorial-distinctive", pt: "editorial distintivo" }
+        : Number.isFinite(s.facialContrast) && s.facialContrast < 38 ? { en: "soft / low-contrast", pt: "suave / baixo contraste" }
+          : { en: "balanced presentation", pt: "apresentação equilibrada" };
     components = [
       modeComponent("harmony", "General Harmony", "Harmonia geral", 25, s.harmony, "global balance"),
       modeComponent("symmetry", "Symmetry", "Simetria", 20, s.symmetry, "bilateral geometry"),
@@ -425,7 +584,7 @@ function createModeAnalysis(mode, s) {
       modeClassification("photogenic", "Photogenic Proxy", "Proxy de fotogenia", level3(photogenicProxy), "medium"),
       modeClassification("singularity", "Aesthetic Distinctiveness", "Singularidade estética", level3(distinctiveness), "low", "Distância estrutural do centro da própria heurística, não raridade populacional."),
       modeClassification("editorial", "Editorial Potential", "Potencial editorial", level3(editorialPotential), "low"),
-      modeClassification("style", "Visual Style", "Estilo visual", { en: "not measured", pt: "não medido" }, "unsupported", "Exige cabelo, roupa, maquiagem e direção criativa."),
+      modeClassification("style", "Visual Presentation Proxy", "Proxy de apresentação visual", visualStyleClass, "low", `Combina contraste, angularidade e distintividade (${round(visualPresentation)}%); não avalia roupa, cabelo ou direção criativa.`),
       modeClassification("contrast", "Facial Contrast", "Contraste facial", Number.isFinite(s.facialContrast) ? level3(s.facialContrast) : { en: "not measured", pt: "não medido" }, Number.isFinite(s.facialContrast) ? "low" : "unsupported", "Sinal de luminância, não avaliação de cor ou maquiagem."),
       modeClassification("impact", "Visual Impact", "Impacto visual", level3(visualImpact), "low"),
     ];
@@ -441,6 +600,13 @@ function createModeAnalysis(mode, s) {
     ];
   }
 
+  const measuredCore = components.filter((item) => Number.isFinite(item.scorePercent) && item.weight >= 8);
+  const weakestCore = measuredCore.length ? Math.min(...measuredCore.map((item) => item.scorePercent)) : 0;
+  const componentSpread = measuredCore.length ? standardDeviation(measuredCore.map((item) => item.scorePercent)) : 0;
+  penalties.push(
+    penalty("weakest_link", "Weakest-link imbalance", "Desequilíbrio do componente mais fraco", weakestCore < 40 ? "applied" : weakestCore < 50 ? "applied" : "clear", weakestCore < 40 ? 0.18 : weakestCore < 50 ? 0.1 : 0, "Calibração rígida: uma média alta não apaga um componente estrutural muito baixo."),
+    penalty("component_spread", "Large component spread", "Grande dispersão entre componentes", componentSpread > 22 ? "applied" : "clear", componentSpread > 22 ? 0.08 : 0, "Reduz resultados inflados por um único pico muito alto."),
+  );
   drivers = drivers.sort((a, b) => b.score - a.score).map((item, index) => ({ ...item, rank: index + 1, score: round(item.score, 1) }));
   const weightedPercent = weightedComponentScore(components);
   const totalPenalty = round(penalties.filter((item) => item.status === "applied").reduce((sum, item) => sum + item.points, 0), 2);
@@ -464,19 +630,32 @@ export function analyzeImageSignals(sourceCanvas, landmarks) {
     const centerY = Math.round(point.y * height);
     const patchRadius = Math.max(2, Math.round(radius * scale));
     const values = [];
+    const labs = [];
     for (let y = Math.max(0, centerY - patchRadius); y <= Math.min(height - 1, centerY + patchRadius); y += 2) {
       for (let x = Math.max(0, centerX - patchRadius); x <= Math.min(width - 1, centerX + patchRadius); x += 2) {
         const offset = (y * width + x) * 4;
         const alpha = pixels[offset + 3];
         if (alpha < 200) continue;
-        const luminance = pixels[offset] * 0.2126 + pixels[offset + 1] * 0.7152 + pixels[offset + 2] * 0.0722;
+        const red = pixels[offset];
+        const green = pixels[offset + 1];
+        const blue = pixels[offset + 2];
+        const luminance = red * 0.2126 + green * 0.7152 + blue * 0.0722;
         values.push(luminance);
+        labs.push(rgbToLab(red, green, blue));
       }
     }
     if (!values.length) return null;
     const mean = average(values);
     const deviation = Math.sqrt(average(values.map((value) => (value - mean) ** 2)));
-    return { mean, deviation };
+    return {
+      mean,
+      deviation,
+      lab: {
+        l: average(labs.map((item) => item.l)),
+        a: average(labs.map((item) => item.a)),
+        b: average(labs.map((item) => item.b)),
+      },
+    };
   }
 
   const leftCheek = patchStats(117, 1.25);
@@ -491,16 +670,56 @@ export function analyzeImageSignals(sourceCanvas, landmarks) {
   const lightingUniformity = clamp(100 - cheekDifference * 1.65 - foreheadDifference * 0.65, 0, 100);
   const skinHomogeneity = clamp(textureUniformity * 0.72 + lightingUniformity * 0.28, 0, 100);
 
-  const featurePatches = [patchStats(159, 0.72), patchStats(386, 0.72), patchStats(13, 0.72), patchStats(70, 0.72), patchStats(300, 0.72)].filter(Boolean);
+  const eyePatches = [patchStats(468, 0.62), patchStats(473, 0.62)].filter(Boolean);
+  const browPatches = [patchStats(105, 0.62), patchStats(334, 0.62)].filter(Boolean);
+  const mouthPatches = [patchStats(0, 0.62), patchStats(17, 0.62)].filter(Boolean);
+  const featureGroups = [eyePatches, browPatches, mouthPatches];
+  const surroundingGroups = [
+    [patchStats(117, 0.72), patchStats(346, 0.72)].filter(Boolean),
+    [patchStats(151, 0.72), patchStats(108, 0.62), patchStats(337, 0.62)].filter(Boolean),
+    [patchStats(205, 0.72), patchStats(425, 0.72), patchStats(164, 0.62)].filter(Boolean),
+  ];
   const skinMean = average(skinPatches.map((item) => item.mean));
-  const featureMean = average(featurePatches.map((item) => item.mean));
-  const facialContrast = clamp((Math.abs(skinMean - featureMean) / 72) * 100, 0, 100);
+  const groupContrasts = featureGroups.map((group, index) => {
+    const surroundings = surroundingGroups[index];
+    if (!group.length || !surroundings.length) return null;
+    const featureMean = average(group.map((item) => item.mean));
+    const surroundingMean = average(surroundings.map((item) => item.mean));
+    const featureLab = {
+      l: average(group.map((item) => item.lab.l)),
+      a: average(group.map((item) => item.lab.a)),
+      b: average(group.map((item) => item.lab.b)),
+    };
+    const surroundingLab = {
+      l: average(surroundings.map((item) => item.lab.l)),
+      a: average(surroundings.map((item) => item.lab.a)),
+      b: average(surroundings.map((item) => item.lab.b)),
+    };
+    return {
+      luminance: adaptedMichelson(surroundingLab.l, featureLab.l) * 100,
+      deltaE: Math.hypot(surroundingLab.l - featureLab.l, surroundingLab.a - featureLab.a, surroundingLab.b - featureLab.b),
+      surroundingMean,
+      featureMean,
+    };
+  });
+  const usableContrasts = groupContrasts.filter(Boolean);
+  const luminanceContrast = average(usableContrasts.map((item) => item.luminance));
+  const colorContrast = average(usableContrasts.map((item) => item.deltaE));
+  const facialContrast = clamp(luminanceContrast * 2.8, 0, 100);
+  const exposureQuality = targetAlignment((skinMean / 255) * 100, 56, 32);
+  const contrastConfidence = clamp(lightingUniformity * 0.62 + exposureQuality * 0.28 + Math.min(usableContrasts.length, 3) / 3 * 10, 0, 100);
   return {
     skinHomogeneity: round(skinHomogeneity, 1),
     facialContrast: round(facialContrast, 1),
+    luminanceContrast: round(luminanceContrast, 2),
+    colorContrastDeltaE: round(colorContrast, 2),
+    eyeContrast: round(groupContrasts[0]?.luminance ?? 0, 2),
+    browContrast: round(groupContrasts[1]?.luminance ?? 0, 2),
+    mouthContrast: round(groupContrasts[2]?.luminance ?? 0, 2),
+    contrastConfidence: round(contrastConfidence, 1),
     lightingUniformity: round(lightingUniformity, 1),
     brightness: round((skinMean / 255) * 100, 1),
-    status: "low_confidence_pixel_proxy",
+    status: contrastConfidence >= 60 ? "multi_region_pixel_proxy" : "low_confidence_pixel_proxy",
   };
 }
 
@@ -613,19 +832,33 @@ export function analyzeLandmarks(rawLandmarks, options = {}) {
   const skinSignalUsable = Number.isFinite(imageSignals.skinHomogeneity)
     && Number.isFinite(imageSignals.lightingUniformity) && imageSignals.lightingUniformity >= 45;
   const contrastSignalUsable = Number.isFinite(imageSignals.facialContrast)
-    && Number.isFinite(imageSignals.lightingUniformity) && imageSignals.lightingUniformity >= 35;
+    && (Number.isFinite(imageSignals.contrastConfidence) ? imageSignals.contrastConfidence >= 25 : true);
+  const depthSignals = relativeDepthSignals(points, options.depthSignals || {});
   const modeAnalysis = createModeAnalysis(presentationTarget, {
     shape, harmony, symmetry, thirdsScore, eyeSpacingScore, mouthNoseScore, noseScore,
     faceRatioScore, chinPhiltrumScore, lowerThirdScore, lipScore, fwhrScore, angularity,
     masculineDimorphism, feminineDimorphism, featureBalance, jawlineScore, eyeAreaScore,
     hunterEyesScore, cheekboneScore, eyeBalance, captureConfidence, middleThird,
     jawCheekRatio, chinPhiltrumRatio, browEyeGapRatio, eyeAspect, eyeSizeRatio,
-    lipFullness, noseFaceWidth, browStrength,
+    lipFullness, noseFaceWidth, browStrength, depthSignals,
     skinHomogeneity: skinSignalUsable ? imageSignals.skinHomogeneity : null,
     facialContrast: contrastSignalUsable ? imageSignals.facialContrast : null,
     lightingUniformity: Number.isFinite(imageSignals.lightingUniformity) ? imageSignals.lightingUniformity : null,
   });
-  const pslScore = round(clamp(toPsl(modeAnalysis.weightedPercent) - modeAnalysis.totalPenalty, 1, 8), 2);
+  const calibratedBasePsl = toPsl(modeAnalysis.weightedPercent);
+  const preGatePsl = clamp(calibratedBasePsl - modeAnalysis.totalPenalty, 1, 8);
+  const coreComponentScores = modeAnalysis.components.filter((item) => Number.isFinite(item.scorePercent) && item.weight >= 8).map((item) => item.scorePercent);
+  const weakestCoreComponent = coreComponentScores.length ? Math.min(...coreComponentScores) : 0;
+  const gateReasons = [];
+  let tierCap = 8;
+  if (preGatePsl >= 5 && harmony < 66) { tierCap = Math.min(tierCap, 4.99); gateReasons.push("HTN requires harmony ≥66"); }
+  if (preGatePsl >= 5 && symmetry < 60) { tierCap = Math.min(tierCap, 4.99); gateReasons.push("HTN requires symmetry ≥60"); }
+  if (preGatePsl >= 5 && featureBalance < 55) { tierCap = Math.min(tierCap, 4.99); gateReasons.push("HTN requires feature balance ≥55"); }
+  if (preGatePsl >= 5 && weakestCoreComponent < 52) { tierCap = Math.min(tierCap, 4.99); gateReasons.push("HTN requires every core component ≥52"); }
+  if (preGatePsl >= 5 && captureConfidence < 68) { tierCap = Math.min(tierCap, 4.99); gateReasons.push("HTN requires capture confidence ≥68"); }
+  if (preGatePsl >= 5.5 && (harmony < 72 || angularity < 58)) { tierCap = Math.min(tierCap, 5.49); gateReasons.push("elite-entry gate not met"); }
+  if (preGatePsl >= 6 && (harmony < 78 || symmetry < 70 || featureBalance < 68)) { tierCap = Math.min(tierCap, 5.99); gateReasons.push("elite consistency gate not met"); }
+  const pslScore = round(clamp(Math.min(preGatePsl, tierCap), 1, 8), 2);
   const tier = tierForPsl(pslScore, presentationTarget);
   const geometryIndex = round(average([harmony, angularity, featureBalance]), 1);
   const components = modeAnalysis.components;
@@ -633,6 +866,15 @@ export function analyzeLandmarks(rawLandmarks, options = {}) {
   const hunterVerdict = hunterEyesScore >= 75 ? "Strong Hunter-Eyes Pattern / Padrão forte"
     : hunterEyesScore >= 60 ? "Partial Hunter-Eyes Pattern / Padrão parcial"
       : "Hunter-Eyes Pattern not indicated / Padrão não indicado";
+  const nasalDepthScore = rangeAlignment(depthSignals.nasalProjection, 10, 24);
+  const chinDepthScore = rangeAlignment(depthSignals.chinProjection, 2.5, 11);
+  const orbitalSupportScore = rangeAlignment(depthSignals.orbitalSupport, 1.5, 7);
+  const ramusSurfaceScore = rangeAlignment(depthSignals.ramusSurfaceRatio, 13, 28);
+  const surfaceGonialScore = rangeAlignment(depthSignals.surfaceGonialAngle, 105, 135);
+  const softTissueDefinition = average([angularity, jawlineScore, cheekboneScore]);
+  const contrastRaw = contrastSignalUsable
+    ? `L* ${round(imageSignals.luminanceContrast ?? 0, 2)}% | EYES ${round(imageSignals.eyeContrast ?? 0, 2)} | BROWS ${round(imageSignals.browContrast ?? 0, 2)} | MOUTH ${round(imageSignals.mouthContrast ?? 0, 2)} | ΔE ${round(imageSignals.colorContrastDeltaE ?? 0, 2)}`
+    : "PIXELS_UNAVAILABLE";
 
   const traits = [
     trait({ id: "facial_harmony", en: "Facial Harmony", pt: "Harmonia facial", score: harmony, raw: round(harmony), unit: "%", confidence: "medium", source: "mixed_research" }),
@@ -640,7 +882,7 @@ export function analyzeLandmarks(rawLandmarks, options = {}) {
     trait({ id: "angularity", en: "Angularity / Bone-Structure Proxy", pt: "Angularidade / proxy de estrutura óssea", score: angularity, raw: round(angularity), unit: "%", confidence: "low", source: "2d_proxy", note: "Landmarks descrevem contorno superficial, não osso real." }),
     trait({ id: "feature_balance", en: "Miscellaneous Feature Balance", pt: "Equilíbrio de características extras", score: featureBalance, raw: round(featureBalance), unit: "%", confidence: "medium", source: "community_proxy", note: "Não inclui pele, cabelo, dentes ou contraste de cor." }),
     trait({ id: "skin_surface_uniformity", en: "Skin-Surface Uniformity Proxy", pt: "Proxy de uniformidade superficial da pele", score: skinSignalUsable ? imageSignals.skinHomogeneity : null, raw: skinSignalUsable ? round(imageSignals.skinHomogeneity) : "UNRELIABLE_OR_UNAVAILABLE_LIGHTING", unit: "%", confidence: "low", source: skinSignalUsable ? "pixel_proxy" : "not_measured", note: "Depende de iluminação, maquiagem, câmera e compressão; não mede saúde da pele." }),
-    trait({ id: "facial_contrast", en: "Facial Luminance Contrast", pt: "Contraste de luminância facial", score: contrastSignalUsable ? imageSignals.facialContrast : null, raw: contrastSignalUsable ? round(imageSignals.facialContrast) : "UNRELIABLE_OR_UNAVAILABLE_LIGHTING", unit: "%", confidence: "low", source: contrastSignalUsable ? "pixel_proxy" : "not_measured", note: "Compara luminância relativa de olhos, sobrancelhas e boca com regiões faciais; não classifica cor." }),
+    trait({ id: "facial_contrast", en: "Facial Contrast (L* + ΔE)", pt: "Contraste facial (L* + ΔE)", score: contrastSignalUsable ? imageSignals.facialContrast : null, raw: contrastRaw, unit: "adapted Michelson + CIELAB", confidence: contrastSignalUsable && imageSignals.contrastConfidence >= 60 ? "medium" : "low", source: contrastSignalUsable ? "pixel_proxy" : "not_measured", note: `Olhos, sobrancelhas e boca contra pele adjacente. Confiança ${round(imageSignals.contrastConfidence ?? 0)}%; descreve contraste visual, não valor estético universal.` }),
     trait({ id: "facial_symmetry", en: "Facial Symmetry", pt: "Simetria facial", score: symmetry, raw: round(symmetry), unit: "%", confidence: "high", source: "geometry" }),
     trait({ id: "facial_thirds", en: "Facial Thirds", pt: "Terços faciais", score: thirdsScore, raw: `${round(upperThird, 1)} / ${round(middleThird, 1)} / ${round(lowerThird, 1)}`, unit: "%", confidence: "low", source: "2d_proxy", note: "O topo da testa não é a linha capilar real." }),
     trait({ id: "fwhr", en: "Facial Width-to-Height Ratio (fWHR)", pt: "Relação largura-altura facial", score: fwhrScore, raw: round(fwhr), unit: "ratio", confidence: "medium", source: "anthropometry" }),
@@ -662,18 +904,20 @@ export function analyzeLandmarks(rawLandmarks, options = {}) {
     trait({ id: "nose_width_height", en: "Nasal Width-to-Height Ratio", pt: "Relação largura-altura nasal", score: noseScore, raw: round(noseWidthHeightRatio), unit: "ratio", confidence: "medium", source: "anthropometry" }),
     trait({ id: "lip_ratio", en: "Lower-to-Upper Lip Ratio", pt: "Relação lábio inferior-superior", score: lipScore, raw: round(lipRatio), unit: "ratio", confidence: "medium", source: "geometry" }),
     trait({ id: "face_shape", en: "Face Shape", pt: "Formato facial", score: harmony, raw: shape.label, confidence: "medium", source: "contour_classification" }),
-    trait({ id: "gonial_angle", en: "Gonial Angle", pt: "Ângulo goníaco", score: null, raw: "PROFILE_REQUIRED", confidence: "unsupported", source: "not_measured", note: "Um ângulo goníaco real exige perfil lateral padronizado e não é o ângulo frontal acima." }),
-    trait({ id: "ramus", en: "Ramus Length", pt: "Comprimento do ramo mandibular", score: null, raw: "BONE_NOT_VISIBLE", confidence: "unsupported", source: "not_measured" }),
+    trait({ id: "relative_nasal_depth", en: "Relative Nasal Depth Proxy", pt: "Proxy de profundidade nasal relativa", score: depthSignals.zUsable ? nasalDepthScore : null, raw: depthSignals.zUsable ? depthSignals.nasalProjection : "Z_UNAVAILABLE", unit: "% face width", confidence: depthSignals.depthConfidence >= 65 ? "medium" : "low", source: depthSignals.zUsable ? depthSignals.source : "not_measured", note: "Profundidade relativa do modelo 3D; não equivale a milímetros." }),
+    trait({ id: "relative_chin_depth", en: "Relative Chin Depth Proxy", pt: "Proxy de profundidade relativa do queixo", score: depthSignals.zUsable ? chinDepthScore : null, raw: depthSignals.zUsable ? depthSignals.chinProjection : "Z_UNAVAILABLE", unit: "% face width", confidence: depthSignals.depthConfidence >= 65 ? "medium" : "low", source: depthSignals.zUsable ? depthSignals.source : "not_measured", note: "Superfície estimada; não mede projeção óssea clínica." }),
+    trait({ id: "gonial_surface_3d", en: "3D Surface Gonial Proxy", pt: "Proxy 3D superficial do ângulo goníaco", score: depthSignals.zUsable ? surfaceGonialScore : null, raw: depthSignals.zUsable ? depthSignals.surfaceGonialAngle : "DEPTH_REQUIRED", unit: "° surface mesh", confidence: "low", source: depthSignals.zUsable ? depthSignals.source : "not_measured", note: "Ângulo da malha de tecido mole. Não é o ângulo goníaco anatômico obtido por cefalometria." }),
+    trait({ id: "ramus_surface", en: "Ramus-Surface Length Proxy", pt: "Proxy superficial do comprimento do ramo", score: depthSignals.zUsable ? ramusSurfaceScore : null, raw: depthSignals.zUsable ? depthSignals.ramusSurfaceRatio : "DEPTH_REQUIRED", unit: "% face height", confidence: "low", source: depthSignals.zUsable ? depthSignals.source : "not_measured", note: "Distância na malha entre região lateral e contorno mandibular; não mede o osso." }),
     trait({ id: "cervicomental", en: "Cervicomental Angle", pt: "Ângulo cervicomentoniano", score: null, raw: "NECK_LANDMARKS_REQUIRED", confidence: "unsupported", source: "not_measured" }),
-    trait({ id: "orbital_vector", en: "Orbital Vector", pt: "Vetor orbital", score: null, raw: "PROFILE_REQUIRED", confidence: "unsupported", source: "not_measured" }),
-    trait({ id: "facial_leanness", en: "Facial Leanness", pt: "Definição por baixa gordura facial", score: null, raw: "NOT_RELIABLE_FROM_LANDMARKS", confidence: "unsupported", source: "not_measured", note: "O scanner não estima percentual de gordura ou saúde pelo rosto." }),
+    trait({ id: "orbital_support_depth", en: "Orbital-Support Depth Proxy", pt: "Proxy de suporte orbital em profundidade", score: depthSignals.zUsable ? orbitalSupportScore : null, raw: depthSignals.zUsable ? depthSignals.orbitalSupport : "DEPTH_REQUIRED", unit: "% face width", confidence: "low", source: depthSignals.zUsable ? depthSignals.source : "not_measured", note: "Diferença relativa entre superfície ocular e infraorbital; não é vetor orbital clínico." }),
+    trait({ id: "soft_tissue_definition", en: "Soft-Tissue Definition Proxy", pt: "Proxy de definição de tecido mole", score: softTissueDefinition, raw: round(softTissueDefinition), unit: "% contour definition", confidence: "low", source: "2d_3d_composite_proxy", note: "Descreve contorno e transições superficiais; não estima gordura corporal nem saúde." }),
   ];
 
   const attractionDrivers = modeAnalysis.drivers;
   const potential = buildPotential({ shape, eyeArea: eyeAreaScore, jawline: jawlineScore, featureBalance, captureConfidence });
 
   return {
-    version: 3,
+    version: 4,
     analyzedAt: new Date().toISOString(),
     sourceType: options.sourceType || "unknown",
     presentationTarget,
@@ -686,6 +930,15 @@ export function analyzeLandmarks(rawLandmarks, options = {}) {
       penalty: modeAnalysis.totalPenalty,
       formula: modeAnalysis.formula,
       components,
+      calibration: {
+        version: "strict_piecewise_v4",
+        weightedPercent: modeAnalysis.weightedPercent,
+        calibratedBasePsl,
+        preGatePsl: round(preGatePsl, 2),
+        weakestCoreComponent: round(weakestCoreComponent, 1),
+        tierCap: tierCap < 8 ? tierCap : null,
+        gateReasons,
+      },
       disclaimer: "PSL-inspired heuristic; no universal or scientifically validated PSL formula exists.",
     },
     scores: {
@@ -708,11 +961,39 @@ export function analyzeLandmarks(rawLandmarks, options = {}) {
       measuredWeight: components.filter((item) => item.scorePercent !== null).reduce((sum, item) => sum + item.weight, 0),
     },
     visualSignals: {
+      method: "adapted_michelson_plus_cielab_feature_regions",
+      sampleCount: imageSignals.sampleCount ?? (Number.isFinite(imageSignals.facialContrast) ? 1 : 0),
       skinHomogeneity: Number.isFinite(imageSignals.skinHomogeneity) ? round(imageSignals.skinHomogeneity, 1) : null,
       facialContrast: Number.isFinite(imageSignals.facialContrast) ? round(imageSignals.facialContrast, 1) : null,
+      luminanceContrast: Number.isFinite(imageSignals.luminanceContrast) ? round(imageSignals.luminanceContrast, 2) : null,
+      colorContrastDeltaE: Number.isFinite(imageSignals.colorContrastDeltaE) ? round(imageSignals.colorContrastDeltaE, 2) : null,
+      eyeContrast: Number.isFinite(imageSignals.eyeContrast) ? round(imageSignals.eyeContrast, 2) : null,
+      browContrast: Number.isFinite(imageSignals.browContrast) ? round(imageSignals.browContrast, 2) : null,
+      mouthContrast: Number.isFinite(imageSignals.mouthContrast) ? round(imageSignals.mouthContrast, 2) : null,
+      contrastConfidence: Number.isFinite(imageSignals.contrastConfidence) ? round(imageSignals.contrastConfidence, 1) : null,
       lightingUniformity: Number.isFinite(imageSignals.lightingUniformity) ? round(imageSignals.lightingUniformity, 1) : null,
       skinSignalUsable,
       contrastSignalUsable,
+    },
+    dimensionAudit: {
+      twoDimensional: {
+        status: "measured",
+        confidence: captureConfidence,
+        basis: "478 landmarks + pixel regions",
+      },
+      depthProxy: {
+        status: depthSignals.zUsable ? "measured_as_relative_proxy" : "unavailable",
+        confidence: round(depthSignals.depthConfidence, 1),
+        source: depthSignals.source,
+        poseCoverage: round(depthSignals.poseCoverage, 1),
+        completedSteps: depthSignals.completedSteps,
+        sampleCount: depthSignals.sampleCount,
+        transformationMatrixSamples: depthSignals.matrixSamples,
+        yawSpan: depthSignals.yawSpan,
+        pitchSpan: depthSignals.pitchSpan,
+        metricScale: false,
+      },
+      limitation: "RGB webcam depth is model-relative and non-metric; clinical or millimetric 3D requires calibrated stereo, structured light, LiDAR or a validated 3D scanner.",
     },
     traits,
     metrics: traits.filter((item) => item.rawValue !== null).map((item) => ({
@@ -727,8 +1008,9 @@ export function analyzeLandmarks(rawLandmarks, options = {}) {
     potential,
     notes: [
       "PSL e tiers são taxonomia cultural de fóruns, não medição científica de beleza.",
-      "Fotos 2D não medem estrutura óssea, gordura corporal, saúde, ancestralidade ou personalidade.",
-      "Pele, cabelo, barba, estilo e contraste só são pontuados quando houver imagem calibrada e método explícito; no modelo atual aparecem como não medidos.",
+      "2D e profundidade relativa da malha não medem estrutura óssea, gordura corporal, saúde, ancestralidade ou personalidade.",
+      "Contraste usa Michelson adaptado e CIELAB em regiões de olhos, sobrancelhas e boca; luz e maquiagem alteram a leitura.",
+      "A camada 3D é um proxy não métrico. Cervicomental real exige pescoço e perfil padronizado fora da malha facial.",
       "Preferências de rostos variam significativamente entre indivíduos e culturas.",
     ],
   };
@@ -741,12 +1023,14 @@ export function analyzeLandmarkSamples(samples, options = {}) {
   const points = medianLandmarks(selected, aspectRatio);
   if (!points) throw new Error("Nenhuma amostra frontal válida foi capturada.");
   const confidence = clamp(58 + selected.length * 2.2, 58, 96);
+  const depthSignals = summarizeMultiView(samples, aspectRatio);
   return analyzeLandmarks(points, {
     aspectRatio: 1,
     sourceType: options.sourceType || "guided_scan",
     presentationTarget: options.presentationTarget || "neutral",
     confidence,
     imageSignals: options.imageSignals,
+    depthSignals,
   });
 }
 
@@ -756,3 +1040,5 @@ export function compareAnalyses(primary, challenger) {
     challenger: { psl: challenger.psl?.score, tier: challenger.psl?.tier },
   };
 }
+
+export { tierForPsl, toPsl as calibratePslScore };

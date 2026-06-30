@@ -1,5 +1,5 @@
-const CACHE_VERSION = "lokx-shell-v9";
-const RUNTIME_CACHE = "lokx-static-v9";
+const CACHE_VERSION = "lokx-shell-v10";
+const RUNTIME_CACHE = "lokx-static-v10";
 const SHELL_ASSETS = [
   "./",
   "./index.html",
