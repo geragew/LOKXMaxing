@@ -429,14 +429,20 @@ function createModeAnalysis(mode, s) {
     : s.middleThird <= 43 ? { en: "balanced", pt: "equilibrado" } : { en: "long", pt: "longo" };
   const cheekboneClass = s.cheekboneScore >= 72 ? { en: "high / prominent", pt: "altas / proeminentes" }
     : s.cheekboneScore >= 46 ? { en: "medium", pt: "médias" } : { en: "low", pt: "baixas" };
+  const isSinglePhoto = /^consented_photo/.test(s.sourceType || "");
+  const qualityStatus = (condition, measured = true) => {
+    if (!measured) return "not_measured";
+    if (!condition) return "clear";
+    return isSinglePhoto ? "applied" : "quality_warning";
+  };
   const capturePenalty = round((100 - s.captureConfidence) * 0.006, 2);
   const commonPenalties = [
     penalty("low_symmetry", "Low symmetry", "Baixa simetria", s.symmetry < 55 ? "applied" : "clear", s.symmetry < 55 ? 0.12 : 0),
     penalty("long_midface", "Very long midface", "Midface muito longo", s.middleThird > 47 ? "applied" : "clear", s.middleThird > 47 ? 0.1 : 0),
-    penalty("capture_quality", "Capture quality", "Qualidade da captura", capturePenalty > 0.08 ? "applied" : "clear", capturePenalty, "Combina confiança, enquadramento e estabilidade; não identifica sozinho a causa."),
-    penalty("lighting_uniformity", "Uneven lighting signal", "Sinal de iluminação desigual", Number.isFinite(s.lightingUniformity) ? (s.lightingUniformity < 45 ? "applied" : "clear") : "not_measured", Number.isFinite(s.lightingUniformity) && s.lightingUniformity < 45 ? 0.06 : 0, "Estimativa de pixels; sombras intencionais também podem afetar o valor."),
-    penalty("expression_neutrality", "Expression neutrality", "Neutralidade da expressão", Number.isFinite(s.depthSignals?.expressionNeutrality) ? (s.depthSignals.expressionNeutrality < 68 ? "applied" : "clear") : "not_measured", Number.isFinite(s.depthSignals?.expressionNeutrality) && s.depthSignals.expressionNeutrality < 68 ? 0.08 : 0, "Blendshapes detectam sorriso, abertura da boca e contrações; não interpretam emoção."),
-    penalty("multiview_coverage", "2D/3D pose coverage", "Cobertura de poses 2D/3D", s.depthSignals?.source === "guided_multiview_rgb_depth_proxy" ? (s.depthSignals.poseCoverage < 55 ? "applied" : "clear") : "not_measured", s.depthSignals?.source === "guided_multiview_rgb_depth_proxy" && s.depthSignals.poseCoverage < 55 ? 0.1 : 0, "A profundidade é relativa ao modelo; não é escaneamento métrico."),
+    penalty("capture_quality", "Capture quality", "Qualidade da captura", qualityStatus(capturePenalty > 0.08), isSinglePhoto ? capturePenalty : 0, isSinglePhoto ? "Em foto única, enquadramento e estabilidade podem alterar a imagem avaliada." : "No scanner guiado, altera confiança e intervalo; não reduz a nota estética."),
+    penalty("lighting_uniformity", "Uneven lighting signal", "Sinal de iluminação desigual", qualityStatus(s.lightingUniformity < 45, Number.isFinite(s.lightingUniformity)), isSinglePhoto && Number.isFinite(s.lightingUniformity) && s.lightingUniformity < 45 ? 0.06 : 0, isSinglePhoto ? "Ajuste pequeno da foto analisada; sombras intencionais também podem afetar o valor." : "No scanner guiado, apenas sinaliza menor confiabilidade dos pixels."),
+    penalty("expression_neutrality", "Expression neutrality", "Neutralidade da expressão", qualityStatus(s.depthSignals.expressionNeutrality < 68, Number.isFinite(s.depthSignals?.expressionNeutrality)), isSinglePhoto && Number.isFinite(s.depthSignals?.expressionNeutrality) && s.depthSignals.expressionNeutrality < 68 ? 0.08 : 0, isSinglePhoto ? "Expressão forte altera a foto avaliada." : "No scanner guiado, expressão altera confiança; não o valor estético base."),
+    penalty("multiview_coverage", "2D/3D pose coverage", "Cobertura de poses 2D/3D", s.depthSignals?.source !== "guided_multiview_rgb_depth_proxy" ? "not_measured" : s.depthSignals.poseCoverage < 55 ? "quality_warning" : "clear", 0, "Cobertura baixa amplia incerteza; não reduz a nota estética."),
   ];
 
   let components = [];
@@ -733,6 +739,7 @@ export function analyzeLandmarks(rawLandmarks, options = {}) {
   if (!rawLandmarks || rawLandmarks.length < 478) throw new Error("Landmarks faciais insuficientes.");
   const aspectRatio = options.aspectRatio || 1;
   const points = normalizedLandmarks(rawLandmarks, aspectRatio);
+  const sourceType = options.sourceType || "unknown";
   const presentationTarget = ["masculine", "feminine", "neutral"].includes(options.presentationTarget)
     ? options.presentationTarget : "neutral";
 
@@ -842,8 +849,9 @@ export function analyzeLandmarks(rawLandmarks, options = {}) {
   const imageSignals = options.imageSignals || {};
   const skinSignalUsable = Number.isFinite(imageSignals.skinHomogeneity)
     && Number.isFinite(imageSignals.lightingUniformity) && imageSignals.lightingUniformity >= 45;
+  const contrastConfidenceThreshold = /^consented_photo/.test(sourceType) ? 25 : 60;
   const contrastSignalUsable = Number.isFinite(imageSignals.facialContrast)
-    && (Number.isFinite(imageSignals.contrastConfidence) ? imageSignals.contrastConfidence >= 25 : true);
+    && (Number.isFinite(imageSignals.contrastConfidence) ? imageSignals.contrastConfidence >= contrastConfidenceThreshold : true);
   const depthSignals = relativeDepthSignals(points, options.depthSignals || {});
   const modeAnalysis = createModeAnalysis(presentationTarget, {
     shape, harmony, symmetry, thirdsScore, eyeSpacingScore, mouthNoseScore, noseScore,
@@ -852,7 +860,7 @@ export function analyzeLandmarks(rawLandmarks, options = {}) {
     hunterEyesScore, cheekboneScore, eyeBalance, captureConfidence, middleThird,
     jawCheekRatio, chinPhiltrumRatio, browEyeGapRatio, eyeAspect, eyeSizeRatio,
     lipFullness, noseFaceWidth, browStrength, depthSignals,
-    skinHomogeneity: skinSignalUsable ? imageSignals.skinHomogeneity : null,
+    sourceType, skinHomogeneity: skinSignalUsable ? imageSignals.skinHomogeneity : null,
     facialContrast: contrastSignalUsable ? imageSignals.facialContrast : null,
     lightingUniformity: Number.isFinite(imageSignals.lightingUniformity) ? imageSignals.lightingUniformity : null,
   });
@@ -864,6 +872,7 @@ export function analyzeLandmarks(rawLandmarks, options = {}) {
   const reliabilityWarnings = [];
   const liteGateLabel = presentationTarget === "masculine" ? "CHADLITE"
     : presentationTarget === "feminine" ? "STACYLITE" : "LITE";
+  const isSinglePhotoSource = /^consented_photo/.test(sourceType);
   let tierCap = 8;
   if (preGatePsl >= 5.5 && harmony < 62) { tierCap = Math.min(tierCap, 5.49); gateReasons.push(`${liteGateLabel} entry requires harmony ≥62`); }
   if (preGatePsl >= 5.5 && featureBalance < 48) { tierCap = Math.min(tierCap, 5.49); gateReasons.push(`${liteGateLabel} entry requires feature balance ≥48`); }
@@ -871,8 +880,14 @@ export function analyzeLandmarks(rawLandmarks, options = {}) {
   if (preGatePsl >= 6 && (harmony < 70 || angularity < 50 || symmetry < 58)) { tierCap = Math.min(tierCap, 5.99); gateReasons.push("elite consistency gate not met"); }
   if (preGatePsl >= 6.5 && (harmony < 76 || symmetry < 66 || featureBalance < 62)) { tierCap = Math.min(tierCap, 6.49); gateReasons.push("upper-elite consistency gate not met"); }
   if (captureConfidence < 68) reliabilityWarnings.push("capture confidence below 68; read the result as a wider estimate");
+  if (!isSinglePhotoSource && Number.isFinite(imageSignals.lightingUniformity) && imageSignals.lightingUniformity < 45) reliabilityWarnings.push("uneven live lighting: pixel traits excluded or marked low-confidence; no aesthetic deduction");
+  if (!isSinglePhotoSource && depthSignals.source === "guided_multiview_rgb_depth_proxy" && depthSignals.poseCoverage < 55) reliabilityWarnings.push("low pose coverage: 3D proxies are less reliable; no aesthetic deduction");
   const pslScore = round(clamp(Math.min(preGatePsl, tierCap), 1, 8), 2);
-  const uncertainty = round(clamp(0.18 + (100 - captureConfidence) * 0.009, 0.2, 0.62), 2);
+  const liveQualityUncertainty = !isSinglePhotoSource
+    ? (Number.isFinite(imageSignals.lightingUniformity) && imageSignals.lightingUniformity < 45 ? 0.08 : 0)
+      + (depthSignals.source === "guided_multiview_rgb_depth_proxy" && depthSignals.poseCoverage < 55 ? 0.1 : 0)
+    : 0;
+  const uncertainty = round(clamp(0.18 + (100 - captureConfidence) * 0.009 + liveQualityUncertainty, 0.2, 0.72), 2);
   const estimatedRange = {
     low: round(clamp(pslScore - uncertainty, 1, 8), 2),
     high: round(clamp(pslScore + uncertainty, 1, 8), 2),
@@ -939,9 +954,9 @@ export function analyzeLandmarks(rawLandmarks, options = {}) {
   const potential = buildPotential({ shape, eyeArea: eyeAreaScore, jawline: jawlineScore, featureBalance, captureConfidence });
 
   return {
-    version: 6,
+    version: 7,
     analyzedAt: new Date().toISOString(),
-    sourceType: options.sourceType || "unknown",
+    sourceType,
     presentationTarget,
     faceShape: shape,
     psl: {
@@ -954,7 +969,7 @@ export function analyzeLandmarks(rawLandmarks, options = {}) {
       formula: modeAnalysis.formula,
       components,
       calibration: {
-        version: "landmark_calibrated_piecewise_v6",
+        version: "landmark_calibrated_capture_separated_v7",
         weightedPercent: modeAnalysis.weightedPercent,
         calibratedBasePsl,
         preGatePsl: round(preGatePsl, 2),

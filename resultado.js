@@ -110,7 +110,8 @@ function renderModeAnalysis(analysis) {
     const row = document.createElement("article");
     row.className = `penalty-item is-${item.status}`;
     const status = item.status === "applied" ? `−${item.points.toFixed(2)} PSL`
-      : item.status === "clear" ? "CLEAR" : item.status.toUpperCase();
+      : item.status === "clear" ? "CLEAR"
+        : item.status === "quality_warning" ? "CONFIDENCE_ONLY" : item.status.toUpperCase();
     row.innerHTML = `
       <div><strong>${item.labelEn}</strong><span>${item.labelPt}</span></div>
       <b>${status}</b>${item.note ? `<p>${item.note}</p>` : ""}
