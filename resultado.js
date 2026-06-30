@@ -3,6 +3,7 @@ import { analyzeImageSignals, analyzeLandmarks } from "./analysis-engine.js";
 
 const get = (selector) => document.querySelector(selector);
 const ANALYSIS_TRANSFER_KEY = "lokx_analysis_result_v1";
+const REQUIRED_ANALYSIS_VERSION = 8;
 const REPORT_LIFETIME_MS = 15 * 60 * 1000;
 const HIDDEN_LIFETIME_MS = 5 * 60 * 1000;
 
@@ -203,7 +204,10 @@ function renderTierContext(analysis) {
     : "GATE_STATUS: CLEAR // requisitos mínimos do tier atendidos";
   const reliabilityText = calibration.reliabilityWarnings?.length
     ? ` // RELIABILITY: ${calibration.reliabilityWarnings.join("; ")}` : "";
-  get("#tier-calibration-detail").textContent = `WEIGHTED ${calibration.weightedPercent ?? "--"}% // CORE_MIN ${calibration.weakestCoreComponent ?? "--"}% → BASE PSL ${calibration.calibratedBasePsl ?? "--"} → FINAL ${analysis.psl.score.toFixed(2)}. ${gateText}${reliabilityText}`;
+  const referenceText = calibration.referenceAnchor
+    ? `RAW ${calibration.rawWeightedPercent}% → OWNER_REFERENCE +${calibration.referenceCorrection}% → CALIBRATED ${calibration.weightedPercent}%${calibration.referenceFloorApplied ? " // REFERENCE_FLOOR" : ""}`
+    : `WEIGHTED ${calibration.weightedPercent ?? "--"}%`;
+  get("#tier-calibration-detail").textContent = `${referenceText} // CORE_MIN ${calibration.weakestCoreComponent ?? "--"}% → BASE PSL ${calibration.calibratedBasePsl ?? "--"} → FINAL ${analysis.psl.score.toFixed(2)}. ${gateText}${reliabilityText}`;
   const references = get("#tier-reference-list");
   references.replaceChildren();
   if (!tier.references?.length) {
@@ -280,7 +284,7 @@ function initializePage() {
     sessionStorage.removeItem(ANALYSIS_TRANSFER_KEY);
   }
 
-  if (!primaryAnalysis?.psl || !primaryAnalysis.modeAnalysis || primaryAnalysis.version < 3) {
+  if (!primaryAnalysis?.psl || !primaryAnalysis.modeAnalysis || primaryAnalysis.version < REQUIRED_ANALYSIS_VERSION) {
     get("#empty-report").hidden = false;
     get("#download-pdf").disabled = true;
     get("#download-pdf-footer").disabled = true;

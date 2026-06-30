@@ -1,12 +1,19 @@
 {
-  "schema_version": 7,
-  "model_name": "LOKX capture-separated landmark-calibrated multimode PSL-inspired heuristic",
+  "schema_version": 8,
+  "model_name": "LOKX owner-reference-beta capture-separated landmark-calibrated PSL heuristic",
   "scale": {"min": 1, "max": 8},
   "status": "community-inspired_not_scientifically_validated",
   "selection_rule": "The user selects masculine, feminine or neutral/editorial before camera or upload. Sex and gender are never inferred.",
   "calibration_anchors": {
     "internal_alignment_percent_to_psl": {"20": 2.4, "35": 3.4, "50": 4.3, "60": 4.9, "65": 5.5, "73": 6.0, "83": 6.5, "91": 7.0, "97": 7.5},
     "note": "Internal alignment percentages are heuristic scores, not percentiles. Piecewise anchors are tuned to the selected community tier boundaries and remain experimental."
+  },
+  "owner_reference_beta": {
+    "target_tier": "HIGH HTN / LOW CHADLITE",
+    "target_psl": 5.5,
+    "legacy_component_vector": {"harmony": 70.6, "dimorphism": 24.5, "angularity": 28.9, "extras": 64.6},
+    "rule": "When masculine harmony and extras are high but dimorphism and angularity collapse by more than 22 points, a monotonic under-read correction may raise the internal composite to at most 65%. If duplicate component penalties would move this matched reference below the boundary, the final reference floor is 5.49.",
+    "scope": "Provisional owner-provided community anchor, not population validation and not a scientific attractiveness norm. No face image, landmarks or biometric template are stored."
   },
   "mesh_coordinate_calibration": {
     "bigonial_proxy_landmarks": [58, 288],
@@ -69,6 +76,7 @@
     {"min": 3, "max_exclusive": 4, "shared": "LTN with LOW/MID/HIGH sublevels"},
     {"min": 4, "max_exclusive": 5, "shared": "MTN with LOW/MID/HIGH sublevels"},
     {"min": 5, "max_exclusive": 5.5, "shared": "HTN with LOW/MID/HIGH sublevels"},
+    {"min": 5.4, "max_exclusive": 5.55, "masculine": "HIGH HTN / LOW CHADLITE boundary band; intentionally overlaps the informal forum threshold"},
     {"min": 5.5, "max_exclusive": 6, "masculine": "Chadlite", "feminine": "Stacylite"},
     {"min": 6, "max_exclusive": 6.5, "masculine": "Chad", "feminine": "Stacy"},
     {"min": 6.5, "max_exclusive": 7, "masculine": "Giga Chad", "feminine": "High Stacy"},

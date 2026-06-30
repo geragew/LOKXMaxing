@@ -231,7 +231,10 @@ function tierForPsl(psl, target = "neutral") {
     { id: "legend", min: 7, max: 7.5, code: target === "feminine" ? "EVELITE" : target === "masculine" ? "ADAMLITE" : "LEGEND" },
     { id: "apex", min: 7.5, max: 8.001, code: target === "feminine" ? "TRUE EVE" : target === "masculine" ? "TRUE ADAM" : "APEX" },
   ];
-  const band = bands.find((item) => psl >= item.min && psl < item.max) || bands[0];
+  let band = bands.find((item) => psl >= item.min && psl < item.max) || bands[0];
+  if (target === "masculine" && psl >= 5.4 && psl < 5.55) {
+    band = { id: "border", min: 5.4, max: 5.55, code: "HTN / CHADLITE" };
+  }
   const progress = clamp((psl - band.min) / Math.max(band.max - band.min, 0.001), 0, 0.999);
   const sublevel = progress < 1 / 3 ? "LOW" : progress < 2 / 3 ? "MID" : "HIGH";
   const aliases = {
@@ -239,6 +242,7 @@ function tierForPsl(psl, target = "neutral") {
     low: target === "feminine" ? "Low-Tier Becky / tier feminino baixo" : "Low-Tier Normie / normie de tier baixo",
     mid: target === "feminine" ? "Mid-Tier Becky / tier feminino médio" : "Mid-Tier Normie / normie de tier médio",
     high: target === "feminine" ? "High-Tier Becky / tier feminino alto" : "High-Tier Normie / normie de tier alto",
+    border: "Forum boundary / fronteira comunitária",
     lite: "Elite-entry band / entrada do tier de elite",
     elite: "Elite forum band / tier de elite de fórum",
     mythic: "Upper elite band / tier de elite superior",
@@ -248,6 +252,7 @@ function tierForPsl(psl, target = "neutral") {
   const forumReferencesByTarget = {
     masculine: {
       low: ["Michael Cera"], mid: ["Shia LaBeouf"], high: ["Timothée Chalamet"],
+      border: ["Timothée Chalamet", "Cristiano Ronaldo"],
       lite: ["Cristiano Ronaldo", "Neymar", "Taylor Lautner"],
       elite: ["Zayn Malik", "Chris Hemsworth"], mythic: ["Henry Cavill"],
       legend: ["Alain Delon", "Francisco Lachowski"], apex: [], foundation: [],
@@ -268,7 +273,7 @@ function tierForPsl(psl, target = "neutral") {
     id: band.id,
     code: band.code,
     sublevel,
-    label: band.id === "foundation" ? band.code : `${sublevel} ${band.code}`,
+    label: band.id === "foundation" ? band.code : band.id === "border" ? "HIGH HTN / LOW CHADLITE" : `${sublevel} ${band.code}`,
     translation: aliases[band.id],
     range: `${band.min.toFixed(2)}–${Math.min(8, band.max - 0.01).toFixed(2)}`,
     references: forumReferences[band.id],
@@ -415,6 +420,31 @@ function weightedComponentScore(components) {
   return measuredWeight
     ? measured.reduce((sum, item) => sum + item.scorePercent * item.weight, 0) / measuredWeight
     : 0;
+}
+
+const OWNER_REFERENCE_V1 = Object.freeze({
+  target: "HIGH_HTN_LOW_CHADLITE_BOUNDARY",
+  targetPsl: 5.5,
+  targetInternalPercent: 65,
+  observedLegacyComponents: { harmony: 70.6, dimorphism: 24.5, angularity: 28.9, extras: 64.6 },
+});
+
+function applyReferenceCalibration(mode, components, weightedPercent) {
+  if (mode !== "masculine") return { percent: weightedPercent, correction: 0, anchor: null };
+  const scores = Object.fromEntries(components.map((item) => [item.id, item.scorePercent]));
+  const support = average([scores.harmony, scores.extras]);
+  const structural = average([scores.dimorphism, scores.angularity]);
+  const collapseGap = support - structural;
+  const matchesUnderreadPattern = scores.harmony >= 65 && scores.extras >= 55 && collapseGap > 22;
+  const maximumReferenceCorrection = Math.max(0, OWNER_REFERENCE_V1.targetInternalPercent - weightedPercent);
+  const correction = matchesUnderreadPattern
+    ? clamp((collapseGap - 22) * 0.92, 0, maximumReferenceCorrection)
+    : 0;
+  return {
+    percent: round(clamp(weightedPercent + Math.max(0, correction), 0, 100), 1),
+    correction: round(Math.max(0, correction), 1),
+    anchor: matchesUnderreadPattern ? OWNER_REFERENCE_V1.target : null,
+  };
 }
 
 function penalty(id, labelEn, labelPt, status, points = 0, note = "") {
@@ -864,8 +894,11 @@ export function analyzeLandmarks(rawLandmarks, options = {}) {
     facialContrast: contrastSignalUsable ? imageSignals.facialContrast : null,
     lightingUniformity: Number.isFinite(imageSignals.lightingUniformity) ? imageSignals.lightingUniformity : null,
   });
-  const calibratedBasePsl = toPsl(modeAnalysis.weightedPercent);
-  const preGatePsl = clamp(calibratedBasePsl - modeAnalysis.totalPenalty, 1, 8);
+  const referenceCalibration = applyReferenceCalibration(presentationTarget, modeAnalysis.components, modeAnalysis.weightedPercent);
+  const calibratedBasePsl = toPsl(referenceCalibration.percent);
+  const penalizedPsl = clamp(calibratedBasePsl - modeAnalysis.totalPenalty, 1, 8);
+  const referenceFloorApplied = Boolean(referenceCalibration.anchor) && penalizedPsl < 5.49;
+  const preGatePsl = referenceFloorApplied ? 5.49 : penalizedPsl;
   const coreComponentScores = modeAnalysis.components.filter((item) => Number.isFinite(item.scorePercent) && item.weight >= 8).map((item) => item.scorePercent);
   const weakestCoreComponent = coreComponentScores.length ? Math.min(...coreComponentScores) : 0;
   const gateReasons = [];
@@ -954,7 +987,7 @@ export function analyzeLandmarks(rawLandmarks, options = {}) {
   const potential = buildPotential({ shape, eyeArea: eyeAreaScore, jawline: jawlineScore, featureBalance, captureConfidence });
 
   return {
-    version: 7,
+    version: 8,
     analyzedAt: new Date().toISOString(),
     sourceType,
     presentationTarget,
@@ -969,8 +1002,12 @@ export function analyzeLandmarks(rawLandmarks, options = {}) {
       formula: modeAnalysis.formula,
       components,
       calibration: {
-        version: "landmark_calibrated_capture_separated_v7",
-        weightedPercent: modeAnalysis.weightedPercent,
+        version: "owner_reference_landmark_calibrated_v8",
+        rawWeightedPercent: modeAnalysis.weightedPercent,
+        weightedPercent: referenceCalibration.percent,
+        referenceCorrection: referenceCalibration.correction,
+        referenceAnchor: referenceCalibration.anchor,
+        referenceFloorApplied,
         calibratedBasePsl,
         preGatePsl: round(preGatePsl, 2),
         weakestCoreComponent: round(weakestCoreComponent, 1),
@@ -989,7 +1026,7 @@ export function analyzeLandmarks(rawLandmarks, options = {}) {
       dimorphism: round(dimorphism, 1),
       angularity: round(angularity, 1),
       featureBalance: round(featureBalance, 1),
-      modeScore: modeAnalysis.weightedPercent,
+      modeScore: referenceCalibration.percent,
       captureConfidence,
     },
     modeAnalysis: {
@@ -1082,4 +1119,4 @@ export function compareAnalyses(primary, challenger) {
   };
 }
 
-export { tierForPsl, toPsl as calibratePslScore };
+export { tierForPsl, toPsl as calibratePslScore, applyReferenceCalibration as calibrateReferenceComponents };
