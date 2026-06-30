@@ -1,0 +1,137 @@
+{
+  "schema_version": 1,
+  "reviewed_at": "2026-06-30",
+  "principle": "Preferir processamento local, datasets consentidos ou sintéticos e fontes com licença explícita.",
+  "apis_and_ontologies": [
+    {
+      "id": "ebi_ols_uberon",
+      "name": "EMBL-EBI Ontology Lookup Service + UBERON",
+      "purpose": ["termos anatômicos", "ossos", "músculos", "relações hierárquicas"],
+      "api": "https://www.ebi.ac.uk/ols4/api/ontologies/uberon/",
+      "documentation": "https://www.ebi.ac.uk/ols4/ontologies/uberon",
+      "license_note": "Verificar a licença de cada ontologia consultada.",
+      "recommended_use": "Vocabulário e definições; não usar para inferir anatomia óssea invisível em foto."
+    },
+    {
+      "id": "wikidata_sparql",
+      "name": "Wikidata Query Service",
+      "purpose": ["taxonomia de penteados", "nomes multilíngues", "relações entre estilos"],
+      "api": "https://query.wikidata.org/sparql",
+      "documentation": "https://www.wikidata.org/wiki/Help:Queries",
+      "license": "CC0",
+      "recommended_use": "Montar catálogo terminológico de cortes; revisar manualmente antes de recomendar."
+    },
+    {
+      "id": "wikimedia_commons",
+      "name": "Wikimedia Commons API",
+      "purpose": ["imagens de referência licenciadas", "exemplos de penteados"],
+      "api": "https://commons.wikimedia.org/w/api.php",
+      "documentation": "https://www.mediawiki.org/wiki/API:Main_page",
+      "license_note": "A licença varia por arquivo e deve ser armazenada junto da imagem.",
+      "recommended_use": "Exibir referências com autor, licença e link do arquivo."
+    },
+    {
+      "id": "mediapipe_hair_segmenter",
+      "name": "MediaPipe Image Segmenter — HairSegmenter",
+      "purpose": ["máscara de cabelo", "linha capilar aproximada", "separação cabelo/fundo"],
+      "documentation": "https://ai.google.dev/edge/mediapipe/solutions/vision/image_segmenter",
+      "model_output": ["background", "hair"],
+      "recommended_use": "Apoiar análise de volume e contorno do cabelo sem classificar textura por etnia."
+    },
+    {
+      "id": "mediapipe_selfie_multiclass",
+      "name": "MediaPipe SelfieMulticlass",
+      "purpose": ["segmentação de cabelo", "pele do rosto", "pele corporal", "roupas", "acessórios"],
+      "documentation": "https://ai.google.dev/edge/mediapipe/solutions/vision/image_segmenter",
+      "recommended_use": "Detectar oclusões e separar cabelo do contorno facial."
+    }
+  ],
+  "psychology_models": [
+    {
+      "id": "oosterhof_todorov_2008",
+      "name": "Modelo valência-dominância",
+      "dimensions": ["valência/aparente confiabilidade", "dominância percebida"],
+      "source": "https://pmc.ncbi.nlm.nih.gov/articles/PMC2516255/",
+      "doi": "10.1073/pnas.0805664105",
+      "use_policy": "Pode explicar primeiras impressões agregadas; não afirmar personalidade, confiabilidade real ou caráter do usuário."
+    },
+    {
+      "id": "sutherland_2013",
+      "name": "Modelo tridimensional de inferências sociais",
+      "dimensions": ["aproximação/valência", "dominância", "juventude-atratividade percebida"],
+      "source": "https://pubmed.ncbi.nlm.nih.gov/23376296/",
+      "doi": "10.1016/j.cognition.2012.12.001",
+      "use_policy": "Contexto educacional sobre percepção; nunca converter em diagnóstico individual."
+    },
+    {
+      "id": "little_jones_debruine_2011",
+      "name": "Revisão de atratividade facial",
+      "dimensions": ["simetria", "averageness", "dimorfismo de forma", "cor e textura da pele", "diferenças individuais de preferência"],
+      "source": "https://pubmed.ncbi.nlm.nih.gov/21536551/",
+      "doi": "10.1098/rstb.2010.0404",
+      "use_policy": "Apresentar tendências populacionais e subjetividade; não como fórmula universal."
+    },
+    {
+      "id": "zebrowitz_babyface",
+      "name": "Supergeneralização de babyface",
+      "dimensions": ["maturidade facial percebida", "estereótipos gerados por aparência"],
+      "source": "https://doi.org/10.1207/S15327957PSPR0703_01",
+      "use_policy": "Usar apenas para explicar viés perceptivo, nunca para atribuir competência ou submissão reais."
+    }
+  ],
+  "face_datasets": [
+    {
+      "id": "face_research_london",
+      "name": "Face Research Lab London Set",
+      "url": "https://figshare.com/articles/dataset/Face_Research_Lab_London_Set/5047666",
+      "size": "102 adultos; 189 coordenadas por face",
+      "ratings": "Atratividade 1–7 por 2513 avaliadores",
+      "consent": "Consentimento assinado para estudos e ilustração de pesquisa.",
+      "license": "CC BY 4.0",
+      "status": "recommended_for_research_validation"
+    },
+    {
+      "id": "chicago_face_database",
+      "name": "Chicago Face Database",
+      "url": "https://www.chicagofaces.org/",
+      "size": "597 indivíduos no conjunto principal",
+      "ratings": "Atributos físicos e avaliações subjetivas, incluindo atratividade",
+      "license": "Uso científico conforme os termos do CFD",
+      "status": "request_and_review_terms",
+      "note": "Não integrar ao produto comercial sem conferir autorização."
+    },
+    {
+      "id": "scut_fbp5500",
+      "name": "SCUT-FBP5500",
+      "url": "https://github.com/HCIILAB/SCUT-FBP5500-Database-Release",
+      "size": "5500 faces frontais; 86 landmarks",
+      "ratings": "Notas 1–5 por 60 voluntários",
+      "license": "Licença de redistribuição não está claramente declarada no repositório",
+      "status": "research_only_until_license_verified",
+      "risk": "Imagens parcialmente coletadas da internet e rótulos demográficos binários/categóricos."
+    },
+    {
+      "id": "microsoft_face_synthetics",
+      "name": "Microsoft Face Synthetics",
+      "url": "https://microsoft.github.io/FaceSynthetics/",
+      "size": "100000 faces sintéticas",
+      "labels": ["landmarks 2D", "segmentação por pixel"],
+      "license": "Pesquisa não comercial",
+      "status": "recommended_for_noncommercial_landmark_tests"
+    },
+    {
+      "id": "facebase_3dfn",
+      "name": "3D Facial Norms Database",
+      "url": "https://www.facebase.org/resources/human/facial_norms/",
+      "size": "2454 participantes, 3–40 anos",
+      "labels": ["landmarks 3D", "medidas antropométricas", "superfícies faciais"],
+      "license": "Resumo público; dados individuais mediante credenciais e termos",
+      "status": "recommended_for_normative_research_with_access"
+    }
+  ],
+  "production_decisions": {
+    "external_attractiveness_api": "Não recomendada: caixa-preta, envio de biometria e viés não auditável.",
+    "production_model": "Motor local e explicável baseado em landmarks, com faixas científicas e comunitárias separadas.",
+    "testing_priority": ["faces sintéticas", "datasets com consentimento e licença explícita", "fotos próprias consentidas"]
+  }
+}

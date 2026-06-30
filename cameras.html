@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#b9ff4f" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>LOKXMaxing // Camera Control</title>
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="cameras.css" />
+    <script src="pwa.js" defer></script>
+    <script type="module" src="cameras.js"></script>
+  </head>
+  <body class="cameras-body">
+    <header class="camera-page-header">
+      <a class="wordmark" href="index.html">LOKX<span>_MAXING</span></a>
+      <p>CAMERA_CONTROL_CENTER</p>
+      <div>
+        <span id="secure-state">SECURE_CONTEXT: CHECKING</span>
+        <a href="index.html">[ VOLTAR ]</a>
+      </div>
+    </header>
+
+    <main class="camera-dashboard">
+      <section class="camera-dashboard-hero">
+        <div>
+          <span>C:\LOKX\DEVICES\VIDEO_INPUTS</span>
+          <h1>TODAS AS<br /><b>CÂMERAS.</b></h1>
+          <p>
+            Controle webcams físicas, câmeras virtuais e fontes como Iriun. Cada preview
+            permanece local e é encerrado quando você fecha esta página.
+          </p>
+        </div>
+        <div class="permission-monitor">
+          <span>CAMERA_PERMISSION</span>
+          <strong id="permission-state">PROMPT</strong>
+          <small>controlada pelo navegador</small>
+        </div>
+      </section>
+
+      <section class="dashboard-toolbar">
+        <div>
+          <button class="toolbar-primary" id="grant-cameras" type="button">[ LIBERAR_CÂMERAS ]</button>
+          <button id="refresh-devices" type="button">[ ATUALIZAR_LISTA ]</button>
+          <button id="start-all-cameras" type="button">[ ATIVAR_TODAS ]</button>
+          <button id="stop-all-cameras" type="button">[ PARAR_TODAS ]</button>
+        </div>
+        <label class="dashboard-persistence">
+          <span><b>RESTAURAR_ATIVAS</b><small>somente se o navegador mantiver a permissão</small></span>
+          <input id="restore-cameras" type="checkbox" role="switch" />
+        </label>
+        <button id="install-app" type="button" hidden>[ INSTALAR_APP ]</button>
+      </section>
+
+      <section class="dashboard-status">
+        <span><b id="device-count">0</b> FONTES ENCONTRADAS</span>
+        <span><b id="active-count">0</b> ATIVAS</span>
+        <span id="dashboard-message">aguardando permissão...</span>
+      </section>
+
+      <section class="camera-grid" id="camera-grid"></section>
+
+      <section class="camera-empty" id="camera-empty">
+        <span>NO_VIDEO_INPUTS</span>
+        <h2>Autorize a câmera para revelar os dispositivos.</h2>
+        <p>Os nomes das câmeras ficam ocultos até a primeira permissão do navegador.</p>
+      </section>
+
+      <section class="camera-security-note">
+        <span>[PERMISSÃO_PERSISTENTE]</span>
+        <p>
+          O LOKX salva apenas preferências e IDs fornecidos pelo navegador. A autorização
+          real pertence ao navegador e pode ser revogada a qualquer momento nas configurações
+          do site. HTTPS é obrigatório fora de localhost.
+        </p>
+      </section>
+    </main>
+
+    <div class="system-toast" id="pwa-toast" role="status" aria-live="polite" hidden></div>
+  </body>
+</html>

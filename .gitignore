@@ -1,0 +1,59 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+credentials*.json
+secrets*.json
+tokens*.json
+/certs/
+
+# User-generated biometric media and reports
+/uploads/
+/captures/
+/recordings/
+/reports/
+/exports/
+*.local.json
+
+# Original design sources and private working files
+/*.psd
+/*.psb
+/*.pdf
+/TELA DE CARREG.png
+/loks.py
+
+# Dependencies, caches and build output
+node_modules/
+dist/
+build/
+.cache/
+coverage/
+__pycache__/
+*.py[cod]
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+*.bak
+*.swp
+~$*
+
+# IDE and operating-system metadata
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Local test artifacts
+/test-results/
+/playwright-report/
+/screenshots/
+/.pytest_cache/

@@ -1,0 +1,66 @@
+{
+  "schema_version": 3,
+  "model_name": "LOKX multimode PSL-inspired heuristic",
+  "scale": {"min": 1, "max": 8},
+  "status": "community-inspired_not_scientifically_validated",
+  "selection_rule": "The user selects masculine, feminine or neutral/editorial before camera or upload. Sex and gender are never inferred.",
+  "modes": {
+    "masculine": {
+      "weights": {
+        "facial_harmony": 0.35,
+        "masculine_dimorphism": 0.25,
+        "angularity_structure_proxy": 0.25,
+        "extra_feature_balance": 0.15
+      },
+      "classifications": ["jawline", "chin", "eyes", "brow_area", "midface", "cheekbones", "facial_dimorphism", "masculine_harmony"]
+    },
+    "feminine": {
+      "weights": {
+        "feminine_harmony": 0.25,
+        "facial_softness_femininity": 0.18,
+        "eye_lip_proportions": 0.18,
+        "symmetry": 0.12,
+        "nose_eye_mouth_balance": 0.10,
+        "cheekbones_lower_third": 0.10,
+        "skin_surface_uniformity_pixel_proxy": 0.07
+      },
+      "normalization": "The low-confidence pixel proxy is used only when available. Otherwise its weight is excluded and measured weights are normalized.",
+      "classifications": ["face_shape", "jawline", "chin", "eyes", "lips", "nose", "midface", "cheekbones", "facial_softness", "feminine_harmony"]
+    },
+    "neutral_editorial": {
+      "weights": {
+        "general_harmony": 0.25,
+        "symmetry": 0.20,
+        "facial_proportions": 0.18,
+        "photogenic_proxy": 0.12,
+        "aesthetic_distinctiveness": 0.12,
+        "visual_impact": 0.08,
+        "facial_luminance_contrast_pixel_proxy": 0.05
+      },
+      "normalization": "The facial luminance contrast proxy is used only when pixels are available. Styling remains unmeasured.",
+      "classifications": ["general_harmony", "symmetry", "facial_proportions", "photogenic_proxy", "aesthetic_distinctiveness", "editorial_potential", "visual_style", "facial_contrast", "visual_impact"]
+    }
+  },
+  "penalty_rule": {
+    "score": "mode_weighted_score converted to 1-8 minus only applied measurable penalties",
+    "capture_penalty": "(100 - capture_confidence) * 0.006",
+    "statuses": ["applied", "clear", "partially_measured", "not_measured"]
+  },
+  "tier_ranges": [
+    {"min": 1, "max_exclusive": 3, "shared": "Sub-3 / Very Low Tier; dehumanizing forum labels omitted"},
+    {"min": 3, "max_exclusive": 4, "shared": "Low Tier / LTN"},
+    {"min": 4, "max_exclusive": 5, "shared": "Mid Tier / MTN"},
+    {"min": 5, "max_exclusive": 6, "shared": "High Tier / HTN"},
+    {"min": 6, "max_exclusive": 7, "masculine": "Chadlite", "feminine": "Stacylite"},
+    {"min": 7, "max_exclusive": 7.75, "masculine": "Chad", "feminine": "Stacy"},
+    {"min": 7.75, "max": 8, "masculine": "True Adam", "feminine": "True Eve"}
+  ],
+  "measurement_limits": [
+    "Percent scores are internal heuristic alignment, not population percentiles.",
+    "Chin projection, deep-set eyes, hunter eyes, jaw structure and cheekbones are labeled as 2D visual proxies where appropriate.",
+    "Skin-surface uniformity and facial contrast use low-confidence pixel proxies that vary with lighting, makeup, camera and compression; they do not measure skin health.",
+    "Hair occlusion, beard occlusion, body fat, makeup, styling and facial contrast are not guessed from landmarks.",
+    "Gonial angle, ramus length, orbital vector and cervicomental angle are not claimed from a frontal webcam image.",
+    "No output predicts identity, personality, health, ancestry or universal attractiveness."
+  ]
+}

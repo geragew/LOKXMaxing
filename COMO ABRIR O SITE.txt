@@ -1,0 +1,45 @@
+LOKXMAXING // COMO ABRIR
+========================
+
+NO COMPUTADOR
+1. Clique duas vezes em "ABRIR SITE.bat".
+2. O navegador abrirá automaticamente em http://localhost:8080.
+3. Mantenha a janela preta aberta enquanto estiver usando o site.
+
+NO CELULAR
+1. Conecte o celular e o computador à mesma rede Wi-Fi.
+2. Clique duas vezes em "ABRIR SITE.bat" no computador.
+3. A janela mostrará um endereço parecido com http://192.168.0.10:8080.
+4. Digite esse endereço no navegador do celular.
+5. Se o Windows perguntar, permita o acesso somente em redes privadas.
+
+INSTALAR COMO APP (PWA)
+1. Abra o site por HTTPS no Chrome ou Edge do celular.
+2. Toque em "INSTALAR_APP" no rodapé ou use o menu do navegador > Instalar app.
+3. O LOKXMaxing abrirá em uma janela própria, como um aplicativo.
+
+PAINEL DE CÂMERAS
+Abra /cameras.html ou toque em "cameras.io" no rodapé. O painel permite listar,
+visualizar, espelhar e escolher a câmera principal. Câmeras virtuais, como Iriun,
+aparecem quando o sistema operacional as apresenta ao navegador como videoinput.
+
+MODOS DE ANÁLISE E UPLOAD
+Antes de abrir uma câmera ou anexar uma foto, escolha Masculino, Feminino ou
+Neutro/Andrógino/Editorial. Cada opção usa pesos, classificações e penalidades próprias.
+UPLOAD_PHOTO aceita JPG, PNG e WEBP de até 12 MB e processa a imagem localmente.
+
+SE O CELULAR NÃO ABRIR
+No Windows, abra Configurações > Rede e Internet > Ethernet ou Wi-Fi e altere o
+"Tipo de perfil de rede" para "Rede privada". Depois execute ABRIR SITE.bat novamente.
+
+IMPORTANTE SOBRE A CÂMERA
+O endereço da rede local serve para visualizar e testar o layout. A câmera do celular
+e a instalação do PWA exigem que o site esteja em HTTPS; localhost é aceito apenas no
+próprio computador.
+
+A permissão real pertence ao navegador e não pode ser forçada pelo site. O app salva
+a câmera preferida, o espelhamento e a opção de reabrir fontes quando a permissão
+continuar concedida para a mesma origem HTTPS.
+
+PARA ENCERRAR
+Volte à janela preta e pressione Ctrl+C.

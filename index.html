@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#512728" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta
+      name="description"
+      content="LOKXMaxing — mapeamento facial privado e análise geométrica."
+    />
+    <title>LOKXMaxing // Face Mapping System</title>
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+    <script src="pwa.js" defer></script>
+    <script type="module" src="scanner.js"></script>
+  </head>
+  <body class="booting">
+    <section class="boot-screen" id="boot-screen" aria-label="Inicializando o sistema">
+      <div class="boot-scrim"></div>
+      <header class="boot-header">
+        <span>LOKX_OS</span>
+        <span>BUILD 00.06.30</span>
+      </header>
+
+      <div class="boot-stamp" aria-hidden="true">
+        <span>FACIAL</span>
+        <strong>LOKX</strong>
+        <span>MAPPING SYSTEM</span>
+      </div>
+
+      <div class="boot-console">
+        <div class="boot-console__head">
+          <span>lokx@local:~/boot</span>
+          <span>● ● ●</span>
+        </div>
+        <div class="boot-log" id="boot-log" aria-live="polite">
+          <p><span>000</span> wake_up_sequence()</p>
+        </div>
+        <div class="boot-meter" aria-hidden="true">
+          <span id="boot-progress"></span>
+        </div>
+        <div class="boot-percent"><span id="boot-percent">00</span>%</div>
+      </div>
+
+      <button class="skip-boot" id="skip-boot" type="button">[ ESC ] PULAR_BOOT</button>
+    </section>
+
+    <main class="app-shell" id="app-shell">
+      <section class="artboard" aria-label="LOKXMaxing">
+        <div class="system-header">
+          <a class="wordmark" href="#" aria-label="LOKXMaxing página inicial">
+            LOKX<span>_MAXING</span>
+          </a>
+          <p>FACIAL_MAPPING_PROTOCOL&nbsp;::&nbsp;LOCAL_SESSION</p>
+          <div class="system-clock"><span class="status-dot"></span><span id="clock">00:00:00</span></div>
+        </div>
+
+        <section class="terminal-window" aria-label="Terminal principal">
+          <header class="terminal-titlebar">
+            <div class="terminal-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+            <span>C:\LOKX\USER\FACE_MAP.EXE</span>
+            <span class="terminal-id">SESSION_001</span>
+          </header>
+
+          <div class="editor-tabs" role="tablist" aria-label="Arquivos abertos">
+            <button class="editor-tab is-active" type="button" role="tab" aria-selected="true">
+              <span>◇</span> begin.map
+            </button>
+            <button class="editor-tab" id="open-info" type="button" role="tab" aria-selected="false">
+              <span>#</span> protocolo.md
+            </button>
+            <span class="tab-filler"></span>
+          </div>
+
+          <div class="terminal-content">
+            <div class="line-numbers" aria-hidden="true">
+              <span>01</span><span>02</span><span>03</span><span>04</span><span>05</span><span>06</span>
+              <span>07</span><span>08</span><span>09</span><span>10</span><span>11</span><span>12</span>
+            </div>
+
+            <div class="terminal-copy">
+              <p class="command"><span class="prompt">lokx@face:~$</span> ./scan --private --precise</p>
+              <p class="comment">// LEIA O ROSTO. NÃO INVENTE A PESSOA.</p>
+              <h1>
+                AGORA VOCÊ ME VÊ,<br />
+                <span>AGORA NÃO VÊ MAIS.</span><small>— SHACO</small>
+              </h1>
+              <p class="intro">
+                478 pontos. proporções reais. um relatório visual construído a partir da
+                geometria do seu rosto — sem adivinhar origem, identidade ou destino.
+              </p>
+
+              <div class="runtime-output" id="runtime-output" aria-live="polite">
+                <p><b>[READY]</b> face_landmarker</p>
+                <p><b>[LOCKED]</b> camera_access <span>// aguardando você</span></p>
+                <p><b>[LOCAL]</b> image_storage: off</p>
+              </div>
+
+              <div class="terminal-actions">
+                <button class="run-command" id="start-scan" type="button">
+                  <span class="run-icon">▶</span>
+                  EXECUTAR_MAPEAMENTO
+                  <span class="run-key">ENTER ↵</span>
+                </button>
+                <button class="plain-command" id="read-protocol" type="button">
+                  $ cat ./como_funciona.txt
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <footer class="terminal-statusbar">
+            <span><b>⌁</b> main*</span>
+            <span>UTF-8</span>
+            <span>PRIVACY: ON</span>
+            <span>Ln 01, Col 01</span>
+          </footer>
+        </section>
+
+        <footer class="system-footer">
+          <p><span>◼</span> DADOS_BIOMÉTRICOS // CONSENTIMENTO OBRIGATÓRIO</p>
+          <nav aria-label="Links legais">
+            <a href="cameras.html">cameras()</a>
+            <a href="privacidade.html">privacidade.txt</a>
+            <a href="cookies.html">cookies.cfg</a>
+            <button id="open-cookie-settings" type="button">preferencias()</button>
+            <button id="toggle-fullscreen" type="button">tela_cheia()</button>
+            <button id="install-app" type="button" hidden>instalar_app()</button>
+          </nav>
+          <span>©2026_LOKX</span>
+        </footer>
+      </section>
+    </main>
+
+    <section class="cookie-banner" id="cookie-banner" aria-label="Preferências de cookies" hidden>
+      <div class="cookie-code">0x01</div>
+      <div class="cookie-message">
+        <span>// COOKIE_PROTOCOL</span>
+        <h2>VOCÊ DECIDE O QUE FICA.</h2>
+        <p>
+          O armazenamento essencial mantém o site funcionando. Preferências e métricas
+          só ligam com sua permissão. Isso não autoriza o uso da câmera.
+          <a href="cookies.html">ler cookies.cfg</a>
+        </p>
+      </div>
+      <div class="cookie-actions">
+        <button id="reject-cookies" type="button">[ RECUSAR_OPCIONAIS ]</button>
+        <button id="customize-cookies" type="button">[ CONFIGURAR ]</button>
+        <button class="is-primary" id="accept-cookies" type="button">[ ACEITAR_TODOS ]</button>
+      </div>
+    </section>
+
+    <dialog class="system-dialog" id="cookie-modal" aria-labelledby="cookie-modal-title">
+      <form method="dialog">
+        <header class="dialog-titlebar">
+          <span>COOKIE_SETTINGS.CFG</span>
+          <button value="cancel" aria-label="Fechar">[×]</button>
+        </header>
+        <div class="dialog-body">
+          <p class="dialog-path">C:\LOKX\PRIVACY\<span>cookie_settings.cfg</span></p>
+          <h2 id="cookie-modal-title">Preferências de armazenamento</h2>
+          <p class="dialog-description">
+            Selecione somente o que você permite. O essencial não rastreia sua análise facial.
+          </p>
+
+          <div class="preference-list">
+            <div class="preference-row">
+              <div><strong>ESSENCIAIS</strong><small>Segurança e escolhas de privacidade.</small></div>
+              <span class="always-on">TRUE // FIXED</span>
+            </div>
+            <label class="preference-row">
+              <span><strong>PREFERÊNCIAS</strong><small>Idioma e configurações visuais.</small></span>
+              <input id="preferences-consent" type="checkbox" role="switch" aria-label="Cookies de preferências" />
+            </label>
+            <label class="preference-row">
+              <span><strong>ANÁLISE_DE_USO</strong><small>Métricas anônimas para melhorar o produto.</small></span>
+              <input id="analytics-consent" type="checkbox" role="switch" aria-label="Cookies de análise" />
+            </label>
+          </div>
+
+          <button class="dialog-submit" id="save-cookie-settings" value="default">
+            :wq&nbsp;&nbsp;SALVAR_ESCOLHAS
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="system-dialog biometric-dialog" id="biometric-modal" aria-labelledby="biometric-modal-title">
+      <form method="dialog" id="biometric-form">
+        <header class="dialog-titlebar">
+          <span>BIOMETRIC_PERMISSION.SYS</span>
+          <button value="cancel" aria-label="Fechar">[×]</button>
+        </header>
+        <div class="dialog-body">
+          <p class="dialog-path">C:\LOKX\SECURITY\<span>request_consent()</span></p>
+          <p class="warning-line">[ ! ] PERMISSÃO SENSÍVEL NECESSÁRIA</p>
+          <h2 id="biometric-modal-title">Antes de abrir a câmera.</h2>
+          <p class="dialog-description">
+            Formato do rosto e pontos extraídos da imagem podem constituir dados biométricos
+            sensíveis. Eles serão usados apenas para gerar a análise solicitada por você.
+          </p>
+
+          <dl class="data-table">
+            <div><dt>INPUT</dt><dd>frames da câmera + pontos faciais</dd></div>
+            <div><dt>USE</dt><dd>proporções + relatório visual</dd></div>
+            <div><dt>STORAGE</dt><dd>local // imagens não armazenadas</dd></div>
+            <div><dt>CAMERA</dt><dd>desligada até sua autorização</dd></div>
+          </dl>
+
+          <label class="consent-check">
+            <input id="biometric-consent" type="checkbox" />
+            <span>
+              Autorizo de forma livre, informada, específica e destacada o processamento
+              das imagens do meu rosto e a extração de pontos faciais para esta análise.
+            </span>
+          </label>
+          <label class="consent-check">
+            <input id="age-consent" type="checkbox" />
+            <span>Confirmo que tenho 18 anos ou mais e usarei somente o meu próprio rosto.</span>
+          </label>
+
+          <p class="legal-links">
+            Leia <a href="privacidade.html">privacidade.txt</a>. A autorização pode ser
+            retirada e dados armazenados podem ser excluídos.
+          </p>
+          <button class="dialog-submit" id="continue-scan" value="default" disabled>
+            [ AUTORIZAR_E_CONTINUAR ]
+          </button>
+          <button class="dialog-cancel" value="cancel">cancelar_processo()</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="system-dialog info-dialog" id="info-modal" aria-labelledby="info-modal-title">
+      <form method="dialog">
+        <header class="dialog-titlebar">
+          <span>COMO_FUNCIONA.TXT</span>
+          <button value="cancel" aria-label="Fechar">[×]</button>
+        </header>
+        <div class="dialog-body">
+          <p class="dialog-path">C:\LOKX\DOCS\<span>como_funciona.txt</span></p>
+          <h2 id="info-modal-title">Três etapas. Sem caixa-preta.</h2>
+          <ol class="protocol-list">
+            <li><b>01_SCAN</b><span>Você movimenta o rosto seguindo instruções visuais.</span></li>
+            <li><b>02_MAP</b><span>O navegador localiza pontos e calcula proporções geométricas.</span></li>
+            <li><b>03_REPORT</b><span>Você recebe medidas, características e níveis de confiança.</span></li>
+          </ol>
+          <p class="code-comment">
+            // O sistema não determina etnia, origem geográfica ou personalidade pelo rosto.
+          </p>
+          <button class="dialog-submit open-scan-from-info" value="cancel">[ ENTENDI_INICIAR ]</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="scanner-shell" id="scanner-modal" aria-labelledby="scanner-title">
+      <div class="scanner-app">
+        <header class="scanner-header">
+          <div>
+            <span class="scanner-live-dot"></span>
+            LOKX::FACIAL_CAPTURE
+          </div>
+          <p id="scanner-model-status">MODEL_STATUS: STANDBY</p>
+          <button id="close-scanner" type="button" aria-label="Fechar scanner">[ ENCERRAR × ]</button>
+        </header>
+
+        <div class="scanner-layout">
+          <section class="capture-column">
+            <div class="video-stage" id="video-stage">
+              <video class="media-layer" id="face-video" autoplay playsinline muted></video>
+              <canvas class="media-layer" id="face-overlay"></canvas>
+              <div class="target-frame" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+              <div class="camera-readout">
+                <span id="stream-label">NO_VIDEO_SOURCE</span>
+                <span id="stream-resolution">0 × 0</span>
+                <span id="face-fps">0 FPS</span>
+              </div>
+
+              <div class="camera-gate" id="camera-gate">
+                <span class="permission-code">PERMISSION_REQUEST::CAMERA</span>
+                <h2 id="scanner-title">Como você quer enviar a imagem?</h2>
+                <p>
+                  Câmeras físicas e virtuais, como Iriun Webcam, aparecem na lista depois
+                  da primeira autorização. Escolha primeiro a lógica estética; nenhum áudio será solicitado.
+                </p>
+                <div class="rating-profile rating-profile--gate">
+                  <label for="presentation-target"><b>ANALYSIS_MODE / MODO</b><small>objetivo escolhido; o app não infere gênero</small></label>
+                  <select id="presentation-target">
+                    <option value="masculine">Masculino / masculine aesthetics</option>
+                    <option value="feminine">Feminino / feminine aesthetics</option>
+                    <option value="neutral">Neutro, andrógino ou editorial</option>
+                  </select>
+                </div>
+                <div class="source-actions">
+                  <button class="source-action is-primary" id="allow-camera" type="button">
+                    [ USAR_CÂMERA ]
+                    <small>webcam, celular ou câmera virtual</small>
+                  </button>
+                  <button class="source-action" id="share-screen" type="button">
+                    [ COMPARTILHAR_JANELA ]
+                    <small>para apps que apenas espelham o celular</small>
+                  </button>
+                  <button class="source-action" id="upload-analysis-photo" type="button">
+                    [ UPLOAD_PHOTO ]
+                    <small>JPG, PNG ou WEBP processado localmente</small>
+                  </button>
+                  <input id="analysis-photo-file" type="file" accept="image/jpeg,image/png,image/webp" hidden />
+                </div>
+                <p class="camera-error" id="camera-error" role="alert"></p>
+                <p class="secure-context-note" id="secure-context-note"></p>
+              </div>
+
+              <div class="face-lock" id="face-lock" hidden>
+                <span>FACE_LOCK</span><b id="face-lock-value">SEARCHING</b>
+              </div>
+            </div>
+
+            <div class="capture-progress">
+              <div>
+                <span id="progress-stage">ETAPA 00/05</span>
+                <b id="progress-value">0%</b>
+              </div>
+              <div class="capture-progress__track"><span id="capture-progress-bar"></span></div>
+            </div>
+          </section>
+
+          <aside class="scanner-sidebar">
+            <div class="instruction-block">
+              <span class="instruction-index" id="instruction-index">00</span>
+              <div>
+                <p>// ORIENTAÇÃO_ATUAL</p>
+                <h2 id="scan-instruction">Autorize uma fonte de vídeo.</h2>
+                <span id="scan-detail">O navegador mostrará o pedido oficial de permissão.</span>
+              </div>
+            </div>
+
+            <section class="scanner-settings">
+              <header><span>INPUT_DEVICES</span><b>CONFIG</b></header>
+              <label for="camera-select">FONTE_DE_VÍDEO</label>
+              <div class="device-row">
+                <select id="camera-select" disabled>
+                  <option value="">aguardando permissão...</option>
+                </select>
+                <button id="refresh-cameras" type="button" title="Atualizar câmeras">↻</button>
+              </div>
+              <label class="mirror-control">
+                <span><b>ESPELHAR_PREVIEW</b><small>altera somente o que você vê</small></span>
+                <input id="mirror-camera" type="checkbox" role="switch" checked />
+              </label>
+              <label class="mirror-control">
+                <span><b>REABRIR_CÂMERA</b><small>usa a preferência quando a permissão continuar concedida</small></span>
+                <input id="auto-camera" type="checkbox" role="switch" />
+              </label>
+            </section>
+
+            <section class="quality-panel">
+              <header><span>QUALITY_CHECK</span><b id="quality-score">0/4</b></header>
+              <ul>
+                <li id="check-face"><i></i><span>um rosto detectado</span><b>WAIT</b></li>
+                <li id="check-size"><i></i><span>distância adequada</span><b>WAIT</b></li>
+                <li id="check-center"><i></i><span>rosto centralizado</span><b>WAIT</b></li>
+                <li id="check-light"><i></i><span>iluminação suficiente</span><b>WAIT</b></li>
+              </ul>
+            </section>
+
+            <div class="capture-tips">
+              <p><b>[01]</b> retire óculos escuros e acessórios que cubram o rosto</p>
+              <p><b>[02]</b> mantenha luz frontal e evite contraluz</p>
+              <p><b>[03]</b> deixe expressão neutra e mandíbula relaxada</p>
+            </div>
+
+            <button class="restart-capture" id="restart-capture" type="button" disabled>
+              [ REINICIAR_CAPTURA ]
+            </button>
+            <button class="view-results" id="view-results" type="button" hidden>
+              [ ABRIR_RELATÓRIO → ]
+            </button>
+            <p class="scanner-privacy">FRAMES: NÃO ARMAZENADOS // LANDMARKS: MEMÓRIA DA SESSÃO</p>
+          </aside>
+        </div>
+      </div>
+    </dialog>
+
+    <div class="system-toast" id="toast" role="status" aria-live="polite" hidden>
+      <b>[OK]</b> CONSENT_TOKEN REGISTRADO // ESCOLHA UMA FONTE DE VÍDEO
+    </div>
+  </body>
+</html>

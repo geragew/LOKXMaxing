@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "retrieved_at": "2026-06-30",
+  "sources": [
+    {
+      "id": "looksmaxxing_fandom",
+      "title": "Looksmaxxing Wiki",
+      "type": "community_wiki",
+      "url": "https://looksmaxxing.fandom.com/wiki/Looksmaxxing_Wiki",
+      "api": "https://looksmaxxing.fandom.com/api.php",
+      "license": "CC-BY-SA",
+      "evidence_level": "community_claim",
+      "notes": "A API retornou 15 páginas principais em 2026-06-30; o conteúdo atual é limitado para antropometria."
+    },
+    {
+      "id": "looksmax_38_ratios",
+      "title": "38 Most important facial ratios and the ideal measurements",
+      "type": "community_forum",
+      "url": "https://looksmax.org/threads/38-most-important-facial-ratios-and-the-ideal-measurements-high-effort.956143/",
+      "evidence_level": "community_claim",
+      "notes": "Fonte das faixas comunitárias. Não é estudo científico e contém discordâncias nos próprios comentários."
+    },
+    {
+      "id": "looksmax_front_measurement_guide",
+      "title": "How to measure all facial ratios (front profile only)",
+      "type": "community_forum",
+      "url": "https://looksmax.org/threads/how-to-measure-all-facial-ratios-front-profile-only.1602457/",
+      "evidence_level": "community_claim",
+      "notes": "Usado para nomenclatura e fórmulas comunitárias, com validação independente ainda necessária."
+    },
+    {
+      "id": "facebase_3dfn",
+      "title": "3D Facial Norms Database",
+      "type": "research_database",
+      "url": "https://www.facebase.org/resources/human/facial_norms/",
+      "evidence_level": "standard_anthropometry",
+      "notes": "2454 participantes, landmarks 3D e medidas antropométricas. O acesso a dados individuais exige credenciais."
+    },
+    {
+      "id": "weinberg_3dfn_2016",
+      "title": "The 3D Facial Norms Database: Part 1",
+      "type": "peer_reviewed",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/26492185/",
+      "doi": "10.1597/15-199",
+      "evidence_level": "standard_anthropometry"
+    },
+    {
+      "id": "digital_anthropometry_review",
+      "title": "Application of Digital Anthropometry for Craniofacial Assessment",
+      "type": "peer_reviewed_review",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC4078131/",
+      "evidence_level": "standard_anthropometry"
+    },
+    {
+      "id": "golden_ratio_review",
+      "title": "Assessment of the golden proportion in natural facial esthetics: A systematic review",
+      "type": "systematic_review",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/35738927/",
+      "evidence_level": "research_observation",
+      "notes": "A revisão não encontrou aderência geral das proporções faciais naturais à proporção áurea."
+    },
+    {
+      "id": "mediapipe_face_landmarker",
+      "title": "MediaPipe Face Landmarker for Web",
+      "type": "official_technical_documentation",
+      "url": "https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker/web_js",
+      "evidence_level": "technical_reference"
+    },
+    {
+      "id": "gq_psl_scale_2025",
+      "title": "Inside the PSL Scale: The Looksmaxxer Rating System",
+      "type": "journalistic_interviews",
+      "url": "https://www.gq.com/story/inside-the-psl-scale-the-looksmaxxer-rating-system",
+      "evidence_level": "community_taxonomy",
+      "notes": "Documenta harmony, dimorphism, angularity e miscellaneous, 46 dimensões em uma metodologia e forte variação entre avaliadores. Não valida cientificamente a escala."
+    },
+    {
+      "id": "little_jones_debruine_2011",
+      "title": "Facial attractiveness: evolutionary based research",
+      "type": "peer_reviewed_review",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/21536551/",
+      "doi": "10.1098/rstb.2010.0404",
+      "evidence_level": "research_review",
+      "notes": "Revisa simetria, averageness, pistas de forma sexualmente dimórfica, pele e diferenças individuais."
+    },
+    {
+      "id": "germine_2015_preferences",
+      "title": "Individual Aesthetic Preferences for Faces Are Shaped Mostly by Environments, Not Genes",
+      "type": "peer_reviewed",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/26441352/",
+      "doi": "10.1016/j.cub.2015.08.048",
+      "evidence_level": "research_observation",
+      "notes": "Sustenta a ressalva de que preferências faciais individuais apresentam discordância substancial."
+    },
+    {
+      "id": "watanabe_2020_attractiveness_dimorphism",
+      "title": "A new data-driven mathematical model dissociates attractiveness from sexual dimorphism of human faces",
+      "type": "peer_reviewed",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7538911/",
+      "doi": "10.1038/s41598-020-73472-8",
+      "evidence_level": "research_observation",
+      "notes": "Apoia manter atratividade e dimorfismo como dimensões separáveis."
+    },
+    {
+      "id": "mertens_2023_five_populations",
+      "title": "Facial attractiveness and preference of sexual dimorphism: A comparison across five populations",
+      "type": "peer_reviewed_cross_cultural",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC10427909/",
+      "evidence_level": "research_observation",
+      "notes": "Não encontrou relação universal entre dimorfismo morfológico e atratividade, especialmente para rostos masculinos."
+    },
+    {
+      "id": "mogilski_welling_2018",
+      "title": "Relative Contribution of Jawbone and Cheekbone Prominence, Eyebrow Thickness, Eye Size, and Face Length",
+      "type": "peer_reviewed",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/30568613/",
+      "doi": "10.3389/fpsyg.2018.02428",
+      "evidence_level": "research_observation",
+      "notes": "Informa a separação de jawline, sobrancelha, olhos, maçãs e comprimento facial por modo."
+    },
+    {
+      "id": "matts_2007_skin_homogeneity",
+      "title": "Color homogeneity and visual perception of age, health, and attractiveness of female facial skin",
+      "type": "peer_reviewed",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/17719127/",
+      "doi": "10.1016/j.jaad.2007.07.040",
+      "evidence_level": "research_observation",
+      "notes": "Justifica reservar pele como dimensão relevante, mas não pontuá-la sem cor e iluminação calibradas."
+    }
+  ]
+}
